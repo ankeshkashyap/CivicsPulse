@@ -15,11 +15,14 @@ CivicPulse is a municipal civic-tech platform connecting citizens and city admin
 ### Backend
 - **Framework:** FastAPI (Python 3.11+)
 - **Validation & Serialization:** Pydantic v2
-- **ORM & Data Layer:** SQLAlchemy 2.x, GeoAlchemy2, Alembic
+- **ORM & Data Layer:** SQLAlchemy 2.x, Alembic
 - **Asynchronous Engine:** Uvicorn, AnyIO
 
 ### Database & Storage
-- **Primary Database:** PostgreSQL with canonical PostGIS spatial extensions
+- **Primary Database:** PostgreSQL
+- **Geographic Data:**
+  - **Current:** PostgreSQL `Numeric(9, 6)` `latitude` and `longitude` coordinates with check constraints
+  - **Planned:** Canonical PostGIS `geometry(Point, 4326)` spatial types *(PostGIS is not currently installed or operational locally)*
 - **Evidence Storage:** Cloudinary (planned)
 - **Real-Time Updates:** FastAPI WebSockets (planned)
 
@@ -45,12 +48,13 @@ CivicPulse/
 │   ├── app/
 │   │   ├── api/v1/           # Versioned API routes & endpoints (Health)
 │   │   ├── core/             # Configuration (pydantic-settings) & logging
-│   │   ├── db/               # Base DeclarativeBase, Sessionmaker, Health checker
-│   │   ├── models/           # SQLAlchemy entity models (Multi-city ready)
+│   │   ├── db/               # Base DeclarativeBase, Mixins, Sessionmaker, Health checker
+│   │   ├── models/           # SQLAlchemy 2.x domain models (City, Department, User, Complaint, etc.)
 │   │   ├── schemas/          # Pydantic request/response validation schemas
 │   │   ├── services/         # Domain business logic layer
 │   │   └── main.py           # FastAPI entry point, CORS & exception handlers
 │   ├── alembic/              # Database migration environment
+│   │   └── versions/         # Alembic migration revisions (21e2c13b255e)
 │   ├── tests/                # Pytest test suite & TestClient fixtures
 │   ├── alembic.ini
 │   ├── requirements.txt
@@ -65,107 +69,65 @@ CivicPulse/
 
 ---
 
-## 3. Local Development Prerequisites
+## 3. Database Domain Models
 
-- **Python:** 3.11+
-- **Node.js:** v20+ (v24.11+ supported) & **npm:** 10+
-- **PostgreSQL:** PostgreSQL with PostGIS installed
-- **Git:** 2.40+
+CivicPulse defines 7 core relational entities:
+
+1. **`City`:** Multi-city municipal entities (`name`, `state`, `country`, `is_active`).
+2. **`Department`:** City-scoped administrative departments (`city_id`, `name`, `description`).
+3. **`User`:** Citizen and administrator accounts (`email`, `full_name`, `role: CITIZEN | ADMIN`, `city_id`).
+4. **`Complaint`:** Civic issues with category, severity, lifecycle status, and geographic coordinates.
+5. **`ComplaintImage`:** Evidence metadata for photo uploads (`image_url`, `public_id`, EXIF GPS).
+6. **`ComplaintUpdate`:** Immutable audit log tracking administrative transitions and progress (0–100%).
+7. **`Upvote`:** Citizen community voting with `(complaint_id, user_id)` uniqueness.
 
 ---
 
-## 4. Backend Setup
+## 4. Local Development Setup
 
-1. **Navigate to `backend/` and create virtual environment:**
+### Backend Setup
+1. Create and activate a virtual environment:
    ```bash
    cd backend
    python -m venv venv
+   .\venv\Scripts\Activate.ps1   # Windows
+   source venv/bin/activate      # Linux/macOS
    ```
-
-2. **Activate the virtual environment:**
-   - **Windows (PowerShell):** `.\venv\Scripts\Activate.ps1`
-   - **macOS / Linux:** `source venv/bin/activate`
-
-3. **Install dependencies:**
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-
-4. **Configure environment variables:**
-   ```bash
-   cp .env.example .env
-   # Update DATABASE_URL in .env with your credentials
-   ```
-
----
-
-## 5. Frontend Setup
-
-1. **Navigate to `frontend/`:**
-   ```bash
-   cd frontend
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Configure environment variables:**
-   ```bash
-   cp .env.example .env
-   ```
-
----
-
-## 6. Database Setup & PostGIS Status
-
-CivicPulse uses **PostGIS** as its canonical spatial data standard.
-
-1. **Configure PostgreSQL:**
-   ```sql
-   CREATE DATABASE civicpulse_dev;
-   \c civicpulse_dev;
-   CREATE EXTENSION IF NOT EXISTS postgis;
-   ```
-
-2. **Update `DATABASE_URL` in `backend/.env`:**
+3. Configure environment variables in `backend/.env`:
    ```env
    DATABASE_URL=postgresql+psycopg2://USER:PASSWORD@localhost:5432/civicpulse_dev
    ```
 
-3. **Apply migrations:**
+### Frontend Setup
+1. Install dependencies:
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+---
+
+## 5. Migrations & Database Execution
+
+1. **Generate offline migration SQL:**
+   ```bash
+   cd backend
+   alembic upgrade head --sql
+   ```
+2. **Apply migrations online (requires running database with credentials):**
    ```bash
    alembic upgrade head
    ```
 
 ---
 
-## 7. Running the Application
+## 6. Running Tests
 
-### Start the Backend Server:
-```bash
-cd backend
-# Windows:
-.\venv\Scripts\python -m uvicorn app.main:app --reload --port 8000
-# macOS/Linux:
-python -m uvicorn app.main:app --reload --port 8000
-```
-- Interactive API Docs: `http://localhost:8000/docs`
-- Health Endpoint: `http://localhost:8000/api/v1/health`
-
-### Start the Frontend Dev Server:
-```bash
-cd frontend
-npm run dev
-```
-- Web Application: `http://localhost:5173`
-
----
-
-## 8. Verification & Smoke Tests
-
-### Backend Test Suite:
+### Backend Tests (API smoke tests & Model unit tests):
 ```bash
 cd backend
 .\venv\Scripts\python -m pytest tests/ -v
@@ -179,8 +141,8 @@ npm run build
 
 ---
 
-## 9. Current Project Status
+## 7. Current Project Status
 
-- **Version:** `v0.1.0` (Foundation Stage)
-- **Status:** Greenfield initialization complete. Core monorepo structure, FastAPI engine, React 19 JavaScript client, Tailwind theme tokens, health monitoring, error handling, and test runners are verified and operational.
-- **Next Phase:** Multi-city data models, PostGIS integration, and passwordless email OTP authentication.
+- **Version:** `v0.2.0` (Domain Model Foundation)
+- **Status:** Core PostgreSQL domain models, enums, constraints, relationships, Alembic migration (`21e2c13b255e`), and model unit tests are fully implemented and verified.
+- **Next Phase:** Phase 04 — Authentication (Passwordless Email OTP, JWT issuance, rate-limiting, and role authorization).
