@@ -10,7 +10,7 @@ CivicPulse is a municipal technology platform connecting citizens with city admi
 
 To maintain clear architectural transparency, the current status is demarcated below:
 
-### Implemented Foundation & Domain Models (v0.2.0)
+### Implemented Foundation & Domain Models (v0.2.1)
 
 | Layer | Implemented Components | Description |
 | :--- | :--- | :--- |
@@ -25,7 +25,7 @@ To maintain clear architectural transparency, the current status is demarcated b
 | **Model Enums** | Native Python & PostgreSQL Enums | `UserRole` (`CITIZEN`, `ADMIN`), `ComplaintCategory` (10 civic categories), `ComplaintSeverity` (`LOW`, `MEDIUM`, `HIGH`), `ComplaintStatus` (6 lifecycle stages). |
 | **Geographic Storage** | Temporary Numeric Coordinates | **Current:** PostgreSQL `Numeric(9, 6)` `latitude` and `longitude` with check constraints (`[-90, 90]` and `[-180, 180]`).<br>**Future:** Canonical PostGIS `geometry(Point, 4326)`. *(PostGIS is not currently installed or operational).* |
 | **Database Migration** | Alembic Revision `21e2c13b255e` | Reproducible offline SQL generation and online execution creating all 7 tables, check constraints, foreign keys, unique indexes, and enums. |
-| **Testing** | Pytest Test Suite (`tests/`) | 10 unit and smoke tests validating API endpoints, email uniqueness, role enums, complaint enums, progress percentage constraints, upvote unique constraints, and cascade delete behavior. |
+| **Testing** | Pytest Test Suite (`tests/`) | 12 unit and smoke tests validating API endpoints, email uniqueness, role enums, complaint enums, progress percentage constraints, upvote unique constraints, user deletion restriction, required update actor, and cascade delete behavior. |
 
 ### Planned Features (Subsequent Phases)
 
@@ -70,7 +70,7 @@ User
 Complaint
  ├── id (UUID, PK)
  ├── city_id (UUID, FK -> City.id, RESTRICT)
- ├── user_id (UUID, FK -> User.id, CASCADE)
+ ├── user_id (UUID, FK -> User.id, RESTRICT)
  ├── department_id (UUID, FK -> Department.id, SET NULL)
  ├── title (String), description (Text)
  ├── category (Enum: ROADS, STREETLIGHTS, GARBAGE, DRAINAGE, WATER, SEWERAGE, TRAFFIC, PUBLIC_SAFETY, PARKS, OTHER)
@@ -85,10 +85,10 @@ ComplaintImage
  ├── image_url (String), public_id (String)
  └── latitude, longitude (Numeric 9,6 - EXIF GPS metadata)
 
-ComplaintUpdate
+ComplaintUpdate (Append-Only Audit History)
  ├── id (UUID, PK)
  ├── complaint_id (UUID, FK -> Complaint.id, CASCADE)
- ├── updated_by_user_id (UUID, FK -> User.id, RESTRICT)
+ ├── updated_by_user_id (UUID, FK -> User.id, RESTRICT, NOT NULL)
  ├── old_status, new_status (Enum: ComplaintStatus)
  ├── remark (Text), progress_percentage (Integer)
  └── Check: progress_percentage [0, 100]
@@ -107,5 +107,7 @@ Upvote
 1. **Separation of Concerns:** Route handlers remain thin. Business logic resides in domain services; data access is encapsulated in models and repositories.
 2. **JavaScript Frontend Standard:** Frontend strictly utilizes React with modern JavaScript/JSX (`.js`, `.jsx`) without TypeScript compilation overhead.
 3. **Strict Credential Hygiene:** Never guess passwords, enumerate credentials, or store real secrets in Git. Databases and APIs authenticate strictly through environment-provided configurations.
-4. **Geographic Roadmap:** Numeric coordinates are a temporary baseline. Models will be migrated to PostGIS `geometry(Point, 4326)` when PostGIS infrastructure is provisioned.
-5. **Decoupled Scoring:** Priority calculations live in an isolated service layer rather than hardcoded DB columns or SQL triggers.
+4. **Civic Record Preservation:** Normal account removal deactivates users via `is_active=False`. Physical deletion of users is restricted (`ondelete="RESTRICT"`) when civic complaint records reference them, ensuring municipal history is never lost or orphaned.
+5. **Append-Only Audit Trails:** `ComplaintUpdate` records are strictly append-only at the application/service layer. Lifecycle services may CREATE history records upon valid status changes, but must NEVER update or delete existing history entries. Every update requires an accountable user actor (`updated_by_user_id` is required).
+6. **Geographic Roadmap:** Numeric coordinates are a temporary baseline. Models will be migrated to PostGIS `geometry(Point, 4326)` when PostGIS infrastructure is provisioned.
+7. **Decoupled Scoring:** Priority calculations live in an isolated service layer rather than hardcoded DB columns or SQL triggers.

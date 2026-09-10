@@ -43,7 +43,7 @@ class Complaint(Base, UUIDMixin, TimestampMixin):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid,
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )

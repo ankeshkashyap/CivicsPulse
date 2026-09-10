@@ -103,7 +103,7 @@ def upgrade() -> None:
         sa.CheckConstraint('longitude >= -180.0 AND longitude <= 180.0', name='chk_complaint_longitude'),
         sa.ForeignKeyConstraint(['city_id'], ['cities.id'], ondelete='RESTRICT'),
         sa.ForeignKeyConstraint(['department_id'], ['departments.id'], ondelete='SET NULL'),
-        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='RESTRICT'),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index('ix_complaints_city_id', 'complaints', ['city_id'], unique=False)
@@ -142,7 +142,7 @@ def upgrade() -> None:
         'complaint_updates',
         sa.Column('id', sa.Uuid(), nullable=False),
         sa.Column('complaint_id', sa.Uuid(), nullable=False),
-        sa.Column('updated_by_user_id', sa.Uuid(), nullable=True),
+        sa.Column('updated_by_user_id', sa.Uuid(), nullable=False),
         sa.Column('old_status', complaint_status_enum, nullable=True),
         sa.Column('new_status', complaint_status_enum, nullable=False),
         sa.Column('remark', sa.Text(), nullable=True),

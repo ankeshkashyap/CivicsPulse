@@ -56,7 +56,6 @@ class User(Base, UUIDMixin, TimestampMixin):
     complaints: Mapped[List["Complaint"]] = relationship(
         "Complaint",
         back_populates="user",
-        cascade="all, delete-orphan",
     )
     complaint_updates: Mapped[List["ComplaintUpdate"]] = relationship(
         "ComplaintUpdate",

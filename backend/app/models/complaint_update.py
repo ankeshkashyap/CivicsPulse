@@ -19,7 +19,12 @@ if TYPE_CHECKING:
 
 class ComplaintUpdate(Base, UUIDMixin, CreatedAtMixin):
     """
-    Immutable audit history log tracking administrative transitions and progress updates.
+    Append-only audit history log tracking administrative transitions and progress updates.
+    
+    Architectural Invariant:
+    ComplaintUpdate records are strictly append-only. Lifecycle and domain services
+    may CREATE history records upon valid status transitions, but must NEVER update
+    or delete existing history records.
     """
     __tablename__ = "complaint_updates"
     __table_args__ = (
@@ -35,10 +40,10 @@ class ComplaintUpdate(Base, UUIDMixin, CreatedAtMixin):
         nullable=False,
         index=True,
     )
-    updated_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    updated_by_user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid,
         ForeignKey("users.id", ondelete="RESTRICT"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     old_status: Mapped[Optional[ComplaintStatus]] = mapped_column(
@@ -61,7 +66,7 @@ class ComplaintUpdate(Base, UUIDMixin, CreatedAtMixin):
         "Complaint",
         back_populates="updates",
     )
-    updated_by_user: Mapped[Optional["User"]] = relationship(
+    updated_by_user: Mapped["User"] = relationship(
         "User",
         back_populates="complaint_updates",
     )

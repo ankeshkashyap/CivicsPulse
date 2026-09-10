@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
@@ -18,8 +18,15 @@ from app.models.enums import UserRole, ComplaintCategory, ComplaintSeverity, Com
 
 @pytest.fixture
 def db_session():
-    """Provides an isolated in-memory transactional database session for model testing."""
+    """Provides an isolated in-memory transactional database session with foreign key enforcement."""
     engine = create_engine("sqlite:///:memory:", echo=False)
+
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     Base.metadata.create_all(bind=engine)
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -156,6 +163,84 @@ def test_complaint_image_and_update_models(db_session):
     assert len(complaint.updates) == 1
     assert complaint.updates[0].progress_percentage == 25
     assert complaint.updates[0].new_status == ComplaintStatus.UNDER_REVIEW
+    assert complaint.updates[0].updated_by_user_id == user.id
+
+
+def test_complaint_update_requires_actor(db_session):
+    """Verifies that ComplaintUpdate strictly requires an accountable actor (updated_by_user_id)."""
+    city = City(name="Vijayawada", state="Andhra Pradesh")
+    user = User(email="actor.test@civicpulse.org")
+    db_session.add_all([city, user])
+    db_session.commit()
+
+    complaint = Complaint(
+        city_id=city.id,
+        user_id=user.id,
+        title="Overflowing Drain",
+        description="Drain backing up into roadway.",
+        category=ComplaintCategory.DRAINAGE,
+        severity=ComplaintSeverity.HIGH,
+        latitude=Decimal("16.515000"),
+        longitude=Decimal("80.642000"),
+    )
+    db_session.add(complaint)
+    db_session.commit()
+
+    # Attempting to save an audit record without an accountable actor must fail
+    update_without_actor = ComplaintUpdate(
+        complaint_id=complaint.id,
+        updated_by_user_id=None,
+        new_status=ComplaintStatus.ASSIGNED,
+    )
+    db_session.add(update_without_actor)
+    with pytest.raises(IntegrityError):
+        db_session.commit()
+    db_session.rollback()
+
+
+def test_user_deletion_restricted_when_complaints_exist(db_session):
+    """
+    Verifies that physical deletion of a user is RESTRICTED when complaints reference them.
+    Civic complaints must be preserved as civic history, and users deactivated via is_active=False.
+    """
+    city = City(name="Vijayawada", state="Andhra Pradesh")
+    citizen = User(email="citizen.history@example.com")
+    db_session.add_all([city, citizen])
+    db_session.commit()
+
+    complaint = Complaint(
+        city_id=city.id,
+        user_id=citizen.id,
+        title="Broken Water Pipe",
+        description="Potable water leak on sidewalk.",
+        category=ComplaintCategory.WATER,
+        severity=ComplaintSeverity.MEDIUM,
+        latitude=Decimal("16.512000"),
+        longitude=Decimal("80.644000"),
+    )
+    db_session.add(complaint)
+    db_session.commit()
+
+    complaint_id = complaint.id
+
+    # 1. Attempting physical deletion of user must raise IntegrityError (RESTRICT constraint)
+    db_session.delete(citizen)
+    with pytest.raises(IntegrityError):
+        db_session.commit()
+    db_session.rollback()
+
+    # Verify complaint still exists intact
+    persisted_complaint = db_session.query(Complaint).filter_by(id=complaint_id).first()
+    assert persisted_complaint is not None
+    assert persisted_complaint.user_id == citizen.id
+
+    # 2. Proper lifecycle deactivation (is_active=False) succeeds seamlessly
+    citizen_record = db_session.query(User).filter_by(id=citizen.id).first()
+    citizen_record.is_active = False
+    db_session.commit()
+
+    assert citizen_record.is_active is False
+    assert db_session.query(Complaint).filter_by(id=complaint_id).first() is not None
 
 
 def test_upvote_uniqueness_constraint(db_session):
@@ -193,8 +278,8 @@ def test_upvote_uniqueness_constraint(db_session):
     db_session.rollback()
 
 
-def test_cascade_delete_behavior(db_session):
-    """Verifies that deleting a complaint cascades to images and upvotes cleanly."""
+def test_complaint_deletion_cascades_to_images_and_upvotes(db_session):
+    """Verifies that deleting a complaint cleanly cascades to images and upvotes."""
     city = City(name="Vijayawada", state="Andhra Pradesh")
     user = User(email="test.cascade@example.com")
     db_session.add_all([city, user])
