@@ -11,6 +11,7 @@ from app.models.complaint import Complaint
 from app.models.complaint_image import ComplaintImage
 from app.models.complaint_update import ComplaintUpdate
 from app.models.upvote import Upvote
+from app.models.auth_otp import AuthOTPChallenge
 
 __all__ = [
     "UserRole",
@@ -24,4 +25,5 @@ __all__ = [
     "ComplaintImage",
     "ComplaintUpdate",
     "Upvote",
+    "AuthOTPChallenge",
 ]

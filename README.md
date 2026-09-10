@@ -71,7 +71,7 @@ CivicPulse/
 
 ## 3. Database Domain Models
 
-CivicPulse defines 7 core relational entities:
+CivicPulse defines 8 core relational entities:
 
 1. **`City`:** Multi-city municipal entities (`name`, `state`, `country`, `is_active`).
 2. **`Department`:** City-scoped administrative departments (`city_id`, `name`, `description`).
@@ -80,6 +80,7 @@ CivicPulse defines 7 core relational entities:
 5. **`ComplaintImage`:** Evidence metadata for photo uploads (`image_url`, `public_id`, EXIF GPS).
 6. **`ComplaintUpdate`:** Immutable audit log tracking administrative transitions and progress (0–100%).
 7. **`Upvote`:** Citizen community voting with `(complaint_id, user_id)` uniqueness.
+8. **`AuthOTPChallenge`:** Dedicated single-use authentication challenge persistence (`email`, `otp_hash`, `expires_at`, `attempts`, `max_attempts`, `consumed_at`).
 
 ---
 
@@ -100,7 +101,16 @@ CivicPulse defines 7 core relational entities:
 3. Configure environment variables in `backend/.env`:
    ```env
    DATABASE_URL=postgresql+psycopg2://USER:PASSWORD@localhost:5432/civicpulse_dev
+   JWT_SECRET_KEY=change-this-to-a-secure-random-secret-key-min-32-chars
+   EMAIL_PROVIDER=console
    ```
+
+### Administrator Account Provisioning
+Admin accounts cannot be registered publicly. Provision administrators using the trusted CLI tool:
+```bash
+cd backend
+python -m app.cli create-admin --email admin@civicpulse.org --name "Chief Administrator"
+```
 
 ### Frontend Setup
 1. Install dependencies:
@@ -127,7 +137,7 @@ CivicPulse defines 7 core relational entities:
 
 ## 6. Running Tests
 
-### Backend Tests (API smoke tests & Model unit tests):
+### Backend Tests (API smoke tests, Model unit tests & Auth test suite):
 ```bash
 cd backend
 .\venv\Scripts\python -m pytest tests/ -v
@@ -143,6 +153,6 @@ npm run build
 
 ## 7. Current Project Status
 
-- **Version:** `v0.2.0` (Domain Model Foundation)
-- **Status:** Core PostgreSQL domain models, enums, constraints, relationships, Alembic migration (`21e2c13b255e`), and model unit tests are fully implemented and verified.
-- **Next Phase:** Phase 04 — Authentication (Passwordless Email OTP, JWT issuance, rate-limiting, and role authorization).
+- **Version:** `v0.3.0` (Authentication & IAM Foundation)
+- **Status:** Passwordless Email-OTP flow, Argon2id hashing, HttpOnly session cookies, JWT service, backend role-based authorization (`CITIZEN`, `ADMIN`), admin CLI provisioning, rate limiting, and 35/35 automated unit/integration tests passing.
+- **Next Phase:** Phase 05 — Complaints & Civic Lifecycle Engine.

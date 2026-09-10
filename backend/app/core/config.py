@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "temporary-dev-secret-key-replace-in-production-min-32-chars"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    OTP_EXPIRE_MINUTES: int = 5
+    OTP_MAX_ATTEMPTS: int = 5
+    OTP_COOLDOWN_SECONDS: int = 60
+    AUTH_COOKIE_NAME: str = "civicpulse_access_token"
+    AUTH_COOKIE_SAMESITE: str = "lax"
+    AUTH_COOKIE_PATH: str = "/"
 
     # CORS
     CORS_ORIGINS: Union[List[str], str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
