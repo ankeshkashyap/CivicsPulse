@@ -1,4 +1,4 @@
-﻿from typing import List, Union
+from typing import List, Union
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     # Database
     # Primary: PostgreSQL + PostGIS (GeoAlchemy2)
-    DATABASE_URL: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/civicpulse_dev"
+    DATABASE_URL: str = "postgresql+psycopg2://USER:PASSWORD@localhost:5432/civicpulse_dev"
 
     @property
     def sync_database_url(self) -> str:

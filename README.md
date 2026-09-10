@@ -7,7 +7,7 @@ CivicPulse is a municipal civic-tech platform connecting citizens and city admin
 ## 1. Technology Stack
 
 ### Frontend
-- **Framework:** React 19 + TypeScript
+- **Framework:** React 19 + JavaScript (JSX)
 - **Tooling & Bundler:** Vite 8
 - **Styling & Components:** Tailwind CSS v3, shadcn/ui design tokens, Lucide Icons
 - **Data Fetching & Routing:** TanStack Query v5, React Router v7
@@ -19,7 +19,7 @@ CivicPulse is a municipal civic-tech platform connecting citizens and city admin
 - **Asynchronous Engine:** Uvicorn, AnyIO
 
 ### Database & Storage
-- **Primary Database:** PostgreSQL 18 with canonical PostGIS spatial extensions
+- **Primary Database:** PostgreSQL with canonical PostGIS spatial extensions
 - **Evidence Storage:** Cloudinary (planned)
 - **Real-Time Updates:** FastAPI WebSockets (planned)
 
@@ -29,15 +29,15 @@ CivicPulse is a municipal civic-tech platform connecting citizens and city admin
 
 ```
 CivicPulse/
-├── frontend/                 # React 19 + TypeScript + Vite SPA
+├── frontend/                 # React 19 + JavaScript + Vite SPA
 │   ├── src/
-│   │   ├── components/ui/    # shadcn/ui foundational elements (Button, Card, Badge)
-│   │   ├── lib/              # Utility helpers (cn, clsx)
-│   │   ├── App.tsx           # Foundation health status dashboard
-│   │   ├── main.tsx          # QueryClient & Router entry point
+│   │   ├── components/ui/    # shadcn/ui foundational elements (button.jsx, card.jsx, badge.jsx)
+│   │   ├── lib/              # Utility helpers (utils.js)
+│   │   ├── App.jsx           # Clean development shell
+│   │   ├── main.jsx          # QueryClient & Router entry point
 │   │   └── index.css         # Civic design tokens & dark mode styles
 │   ├── package.json
-│   ├── vite.config.ts
+│   ├── vite.config.js
 │   ├── tailwind.config.js
 │   └── .env.example
 │
@@ -69,7 +69,7 @@ CivicPulse/
 
 - **Python:** 3.11+
 - **Node.js:** v20+ (v24.11+ supported) & **npm:** 10+
-- **PostgreSQL:** PostgreSQL 16+ with PostGIS installed
+- **PostgreSQL:** PostgreSQL with PostGIS installed
 - **Git:** 2.40+
 
 ---
@@ -94,6 +94,7 @@ CivicPulse/
 4. **Configure environment variables:**
    ```bash
    cp .env.example .env
+   # Update DATABASE_URL in .env with your credentials
    ```
 
 ---
@@ -121,7 +122,7 @@ CivicPulse/
 
 CivicPulse uses **PostGIS** as its canonical spatial data standard.
 
-1. **Create the PostgreSQL database:**
+1. **Configure PostgreSQL:**
    ```sql
    CREATE DATABASE civicpulse_dev;
    \c civicpulse_dev;
@@ -130,15 +131,13 @@ CivicPulse uses **PostGIS** as its canonical spatial data standard.
 
 2. **Update `DATABASE_URL` in `backend/.env`:**
    ```env
-   DATABASE_URL=postgresql+psycopg2://username:password@localhost:5432/civicpulse_dev
+   DATABASE_URL=postgresql+psycopg2://USER:PASSWORD@localhost:5432/civicpulse_dev
    ```
 
 3. **Apply migrations:**
    ```bash
    alembic upgrade head
    ```
-
-> **Note on Local Environment:** If running locally without PostGIS extension binaries installed on PostgreSQL, point `DATABASE_URL` to a PostGIS-enabled database instance (e.g. Supabase, Neon, or Docker with `postgis/postgis`).
 
 ---
 
@@ -172,7 +171,7 @@ cd backend
 .\venv\Scripts\python -m pytest tests/ -v
 ```
 
-### Frontend Type Check & Production Build:
+### Frontend Production Build:
 ```bash
 cd frontend
 npm run build
@@ -183,5 +182,5 @@ npm run build
 ## 9. Current Project Status
 
 - **Version:** `v0.1.0` (Foundation Stage)
-- **Status:** Greenfield initialization complete. Core monorepo structure, FastAPI engine, React 19 client, Tailwind theme tokens, health monitoring, error handling, and test runners are verified and operational.
+- **Status:** Greenfield initialization complete. Core monorepo structure, FastAPI engine, React 19 JavaScript client, Tailwind theme tokens, health monitoring, error handling, and test runners are verified and operational.
 - **Next Phase:** Multi-city data models, PostGIS integration, and passwordless email OTP authentication.

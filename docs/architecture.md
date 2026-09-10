@@ -2,7 +2,7 @@
 
 ## 1. System Overview
 
-CivicPulse is a municipal technology platform connecting citizens with city administrators for transparent, location-verified civic problem resolution. The initial demonstration target city is **Vijayawada, India**, designed with a multi-city data model.
+CivicPulse is a municipal technology platform connecting citizens with city administrators for transparent, location-verified civic problem resolution. The initial demonstration target city is **Vijayawada, India**, designed with an extensible multi-city data model.
 
 ---
 
@@ -14,16 +14,16 @@ To maintain clear architectural transparency, the current foundation status is d
 
 | Layer | Implemented Components | Description |
 | :--- | :--- | :--- |
-| **Repository Structure** | Monorepo layout (`frontend/`, `backend/`, `docs/`) | Isolated dependencies, root `.gitignore`, environment templates. |
-| **Frontend Foundation** | React 19, TypeScript, Vite 8, Tailwind CSS v3, shadcn/ui primitives | Strict typing, path aliases (`@/*`), responsive layout, municipal deep green theme, light/dark token system. |
-| **Frontend State & Data** | TanStack Query v5 & React Router v7 | Centralized query client with automated polling (`GET /api/v1/health`), cache management. |
+| **Repository Structure** | Monorepo layout (`frontend/`, `backend/`, `docs/`) | Isolated dependencies, root `.gitignore`, environment templates with clear placeholders. |
+| **Frontend Foundation** | React 19, JavaScript (ESM + JSX), Vite 8, Tailwind CSS v3, shadcn/ui primitives | Pure JavaScript/JSX architecture, path aliases (`@/*`), municipal deep green theme tokens, light/dark mode system. |
+| **Frontend State & Data** | TanStack Query v5 & React Router v7 | Centralized query client with query cache and modern declarative routing structure. |
 | **Backend Framework** | FastAPI + Python 3.11 + Uvicorn | App factory pattern with lifespan management, structured logging, thin route handlers. |
-| **API Contracts** | Pydantic v2 schemas | `HealthResponse` and `DatabaseHealth` models with strict validation. |
+| **API Contracts** | Pydantic v2 schemas | `HealthResponse` and `DatabaseHealth` models with strict boundary validation. |
 | **API Endpoints** | `GET /` and `GET /api/v1/health` | Operational health indicators, environment detection, and non-blocking database diagnostics. |
 | **Error Handling** | Standardized JSON Exception Handlers | Unified response schema for `HTTPException` (4xx), `RequestValidationError` (422), and generic runtime errors (500). |
-| **Security & CORS** | Whitelisted origin middleware | Environment-driven `CORS_ORIGINS` with strict headers and HTTP methods. |
+| **Security & CORS** | Whitelisted origin middleware | Environment-driven `CORS_ORIGINS` with strict headers and HTTP methods. Strictly zero credential guessing. |
 | **Database Setup** | SQLAlchemy 2.x + Alembic + GeoAlchemy2 | Synchronous/asynchronous connection config, declarative base, timestamp mixins, migration runner with PostGIS table exclusions. |
-| **Testing** | Pytest + Starlette TestClient + TypeScript compiler | Smoke tests for root, health, 404 handlers, and full production build verification. |
+| **Testing** | Pytest + Starlette TestClient + Vite build runner | Smoke tests for root, health, 404 handlers, and full frontend production build verification. |
 
 ### Planned Features (Subsequent Phases)
 
@@ -44,7 +44,8 @@ To maintain clear architectural transparency, the current foundation status is d
 ## 3. High-Level Architectural Principles
 
 1. **Separation of Concerns:** Route handlers remain thin. Business logic resides in domain services; data access is encapsulated in repositories/models.
-2. **Type Safety at All Boundaries:** Frontend and backend enforce type safety using TypeScript interfaces and Pydantic v2 schemas respectively.
-3. **Defense in Depth:** Client-side authorization is never trusted; backend enforces role-based endpoint security and ownership verification.
-4. **Canonical Spatial Architecture:** PostGIS is designated as the canonical spatial persistence mechanism rather than unindexed latitude/longitude columns.
-5. **Operational Resilience:** Health checks verify subsystem availability without failing abruptly when downstream services are temporarily unreachable.
+2. **JavaScript Frontend Standard:** Frontend strictly utilizes React with modern JavaScript/JSX (`.js`, `.jsx`) without TypeScript compilation overhead.
+3. **Strict Credential Hygiene:** Never guess passwords, enumerate credentials, or store real secrets in Git. Databases and APIs authenticate strictly through environment-provided configurations.
+4. **Defense in Depth:** Client-side authorization is never trusted; backend enforces role-based endpoint security and ownership verification.
+5. **Canonical Spatial Architecture:** PostGIS is designated as the canonical spatial persistence mechanism rather than unindexed latitude/longitude columns.
+6. **Operational Resilience:** Health checks verify subsystem availability without failing abruptly when downstream services are temporarily unreachable.
