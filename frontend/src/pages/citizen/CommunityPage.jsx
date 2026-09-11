@@ -22,10 +22,14 @@ const CATEGORIES = [
   { label: "All Categories", value: "ALL" },
   { label: "Roads & Potholes", value: "ROADS" },
   { label: "Streetlights", value: "STREETLIGHTS" },
-  { label: "Garbage & Sanitation", value: "SANITATION" },
-  { label: "Water Supply", value: "WATER_SUPPLY" },
+  { label: "Garbage & Sanitation", value: "GARBAGE" },
   { label: "Drainage", value: "DRAINAGE" },
+  { label: "Water Supply", value: "WATER" },
+  { label: "Sewerage", value: "SEWERAGE" },
+  { label: "Traffic & Signals", value: "TRAFFIC" },
   { label: "Public Safety", value: "PUBLIC_SAFETY" },
+  { label: "Parks & Recreation", value: "PARKS" },
+  { label: "Other", value: "OTHER" },
 ]
 
 export function CommunityPage() {

@@ -42,10 +42,6 @@ const SEVERITY_CONFIG = {
     label: "High Severity",
     className: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-800",
   },
-  CRITICAL: {
-    label: "Critical",
-    className: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 border-red-300 dark:border-red-800 font-bold",
-  },
 }
 
 export function ComplaintStatusBadge({ status, className }) {

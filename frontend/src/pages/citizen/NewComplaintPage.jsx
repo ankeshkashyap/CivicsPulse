@@ -21,22 +21,29 @@ import {
   Trash2,
   Shield,
   Car,
+  Compass,
+  Trees,
+  HelpCircle,
+  Waves,
 } from "lucide-react"
 
 const CATEGORIES = [
   { key: "ROADS", label: "Roads & Potholes", icon: Car, desc: "Damaged roads, potholes, broken sidewalks" },
   { key: "STREETLIGHTS", label: "Streetlights", icon: Lightbulb, desc: "Non-functional lights, flickering, damaged poles" },
-  { key: "SANITATION", label: "Garbage & Sanitation", icon: Trash2, desc: "Overflowing bins, uncollected waste, illegal dumping" },
-  { key: "WATER_SUPPLY", label: "Water Supply", icon: Droplets, desc: "Pipeline leaks, water shortage, contaminated water" },
-  { key: "DRAINAGE", label: "Drainage & Sewage", icon: Droplets, desc: "Clogged drains, sewage overflow, stagnant water" },
+  { key: "GARBAGE", label: "Garbage & Sanitation", icon: Trash2, desc: "Overflowing bins, uncollected waste, illegal dumping" },
+  { key: "DRAINAGE", label: "Drainage", icon: Droplets, desc: "Clogged drains, stagnant storm water, open drains" },
+  { key: "WATER", label: "Water Supply", icon: Droplets, desc: "Pipeline leaks, water shortage, contaminated water" },
+  { key: "SEWERAGE", label: "Sewerage", icon: Waves, desc: "Sewage overflow, manhole blockage, pipe burst" },
+  { key: "TRAFFIC", label: "Traffic & Signals", icon: Compass, desc: "Broken traffic signals, intersection hazards, missing signage" },
   { key: "PUBLIC_SAFETY", label: "Public Safety", icon: Shield, desc: "Hazardous conditions, fallen trees, wire risks" },
+  { key: "PARKS", label: "Parks & Recreation", icon: Trees, desc: "Damaged play equipment, overgrown vegetation, broken benches" },
+  { key: "OTHER", label: "Other Civic Issues", icon: HelpCircle, desc: "General municipal concerns not categorized above" },
 ]
 
 const SEVERITIES = [
-  { key: "LOW", label: "Low", desc: "Minor civic inconvenience", color: "text-slate-600 dark:text-slate-400" },
-  { key: "MEDIUM", label: "Medium", desc: "Standard municipal priority", color: "text-blue-600 dark:text-blue-400" },
-  { key: "HIGH", label: "High", desc: "Causes hazard or severe traffic disruption", color: "text-amber-600 dark:text-amber-400" },
-  { key: "CRITICAL", label: "Critical", desc: "Immediate public emergency / danger", color: "text-red-600 dark:text-red-400" },
+  { key: "LOW", label: "Low", desc: "Minor civic inconvenience (Weight: 10)", color: "text-slate-600 dark:text-slate-400" },
+  { key: "MEDIUM", label: "Medium", desc: "Standard municipal priority (Weight: 25)", color: "text-blue-600 dark:text-blue-400" },
+  { key: "HIGH", label: "High", desc: "Hazardous or severe disruption (Weight: 50)", color: "text-amber-600 dark:text-amber-400" },
 ]
 
 export function NewComplaintPage() {
@@ -145,8 +152,8 @@ export function NewComplaintPage() {
       setErrorBanner("Complaint title must be at least 5 characters.")
       return
     }
-    if (description.trim().length < 10) {
-      setErrorBanner("Complaint description must be at least 10 characters.")
+    if (description.trim().length < 10 || description.trim().length > 5000) {
+      setErrorBanner("Complaint description must be between 10 and 5000 characters.")
       return
     }
     const latNum = parseFloat(latitude)
@@ -293,14 +300,14 @@ export function NewComplaintPage() {
               <label className="text-xs font-semibold text-foreground flex items-center justify-between">
                 <span>Detailed Description *</span>
                 <span className="text-[10px] text-muted-foreground font-normal">
-                  {description.length}/4000 characters (min 10)
+                  {description.length}/5000 characters (min 10)
                 </span>
               </label>
               <textarea
                 placeholder="Describe the exact issue, landmarks, hazard level, and any impact on pedestrians or traffic..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                maxLength={4000}
+                maxLength={5000}
                 rows={4}
                 required
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
@@ -311,7 +318,7 @@ export function NewComplaintPage() {
               <label className="text-xs font-semibold text-foreground">
                 Urgency & Severity Level *
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 {SEVERITIES.map((sev) => {
                   const isSelected = severity === sev.key
                   return (

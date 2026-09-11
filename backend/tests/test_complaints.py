@@ -223,19 +223,33 @@ def test_05_invalid_category_rejected(auth_client, citizen_user, sample_jpeg_byt
 
 
 def test_06_invalid_severity_rejected(auth_client, citizen_user, sample_jpeg_bytes):
-    """Test 6: Invalid severity is rejected."""
+    """Test 6: Invalid severity is rejected, including CRITICAL which is not in the domain model."""
     headers = _get_auth_headers(citizen_user)
     files = [("images", ("pothole.jpg", sample_jpeg_bytes, "image/jpeg"))]
-    data = {
+
+    # Verify that CRITICAL is rejected (only LOW, MEDIUM, HIGH are valid)
+    data_critical = {
         "title": "Valid Title Here",
         "description": "Valid description of the issue here.",
         "category": "ROADS",
-        "severity": "CRITICAL_INVALID",
+        "severity": "CRITICAL",
         "latitude": 16.5,
         "longitude": 80.6,
     }
-    res = auth_client.post("/api/v1/complaints", data=data, files=files, headers=headers)
-    assert res.status_code == 422
+    res_critical = auth_client.post("/api/v1/complaints", data=data_critical, files=files, headers=headers)
+    assert res_critical.status_code == 422
+
+    # Arbitrary invalid severity
+    data_invalid = {
+        "title": "Valid Title Here",
+        "description": "Valid description of the issue here.",
+        "category": "ROADS",
+        "severity": "URGENT",
+        "latitude": 16.5,
+        "longitude": 80.6,
+    }
+    res_invalid = auth_client.post("/api/v1/complaints", data=data_invalid, files=files, headers=headers)
+    assert res_invalid.status_code == 422
 
 
 def test_07_invalid_coordinates_rejected(auth_client, citizen_user, sample_jpeg_bytes):
@@ -702,3 +716,36 @@ def test_27_admin_cannot_submit_citizen_complaint(auth_client, admin_user, sampl
     }
     res = auth_client.post("/api/v1/complaints", data=data, files=files, headers=headers)
     assert res.status_code == 403
+
+
+def test_28_all_ten_complaint_categories_and_severities_accepted(auth_client, citizen_user, sample_jpeg_bytes):
+    """Test 28: Verifies all 10 domain categories and all 3 severities (LOW, MEDIUM, HIGH) are valid, and 5000 char description succeeds."""
+    headers = _get_auth_headers(citizen_user)
+    files = [("images", ("img.jpg", sample_jpeg_bytes, "image/jpeg"))]
+
+    all_categories = [c.value for c in ComplaintCategory]
+    assert len(all_categories) == 10
+    assert set(all_categories) == {
+        "ROADS", "STREETLIGHTS", "GARBAGE", "DRAINAGE", "WATER",
+        "SEWERAGE", "TRAFFIC", "PUBLIC_SAFETY", "PARKS", "OTHER"
+    }
+
+    all_severities = [s.value for s in ComplaintSeverity]
+    assert len(all_severities) == 3
+    assert set(all_severities) == {"LOW", "MEDIUM", "HIGH"}
+    assert "CRITICAL" not in all_severities
+
+    # Test creating a complaint with maximum allowed description (5000 chars) in SEWERAGE category
+    data_max_desc = {
+        "title": "Max length description report",
+        "description": "D" * 5000,
+        "category": "SEWERAGE",
+        "severity": "HIGH",
+        "latitude": 16.51,
+        "longitude": 80.65,
+    }
+    res = auth_client.post("/api/v1/complaints", data=data_max_desc, files=files, headers=headers)
+    assert res.status_code == 201
+    assert len(res.json()["description"]) == 5000
+    assert res.json()["category"] == "SEWERAGE"
+    assert res.json()["severity"] == "HIGH"
