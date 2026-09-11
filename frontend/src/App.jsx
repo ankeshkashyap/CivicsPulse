@@ -12,6 +12,8 @@ import { LoginPage } from "@/pages/auth/LoginPage"
 // Citizen Pages
 import { DashboardPage as CitizenDashboardPage } from "@/pages/citizen/DashboardPage"
 import { MyComplaintsPage } from "@/pages/citizen/MyComplaintsPage"
+import { NewComplaintPage } from "@/pages/citizen/NewComplaintPage"
+import { ComplaintDetailPage } from "@/pages/citizen/ComplaintDetailPage"
 import { CommunityPage } from "@/pages/citizen/CommunityPage"
 import { NotificationsPage } from "@/pages/citizen/NotificationsPage"
 import { ProfilePage as CitizenProfilePage } from "@/pages/citizen/ProfilePage"
@@ -65,6 +67,8 @@ export function App() {
           >
             <Route path="/dashboard" element={<CitizenDashboardPage />} />
             <Route path="/complaints" element={<MyComplaintsPage />} />
+            <Route path="/complaints/new" element={<NewComplaintPage />} />
+            <Route path="/complaints/:id" element={<ComplaintDetailPage />} />
             <Route path="/community" element={<CommunityPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/profile" element={<CitizenProfilePage />} />

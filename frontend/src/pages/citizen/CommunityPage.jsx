@@ -1,31 +1,87 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
+import { Link } from "react-router-dom"
 import { PageHeader } from "@/components/ui/page-header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
-import { Users, Search, MapPin, ArrowUpDown } from "lucide-react"
+import { ComplaintStatusBadge, ComplaintSeverityBadge } from "@/components/complaints/ComplaintStatusBadge"
+import { getComplaints } from "@/lib/api"
+import {
+  Users,
+  Search,
+  MapPin,
+  Calendar,
+  Image as ImageIcon,
+  ArrowRight,
+  Shield,
+} from "lucide-react"
 
 const CATEGORIES = [
-  "All Categories",
-  "Roads & Potholes",
-  "Streetlights",
-  "Garbage & Sanitation",
-  "Drainage",
-  "Water Supply",
-  "Public Safety",
+  { label: "All Categories", value: "ALL" },
+  { label: "Roads & Potholes", value: "ROADS" },
+  { label: "Streetlights", value: "STREETLIGHTS" },
+  { label: "Garbage & Sanitation", value: "SANITATION" },
+  { label: "Water Supply", value: "WATER_SUPPLY" },
+  { label: "Drainage", value: "DRAINAGE" },
+  { label: "Public Safety", value: "PUBLIC_SAFETY" },
 ]
 
 export function CommunityPage() {
-  const [selectedCategory, setSelectedCategory] = useState("All Categories")
+  const [selectedCategory, setSelectedCategory] = useState("ALL")
   const [searchQuery, setSearchQuery] = useState("")
+  const [complaints, setComplaints] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadCommunityComplaints() {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const params = { mine: false }
+        if (selectedCategory !== "ALL") {
+          params.category = selectedCategory
+        }
+        const data = await getComplaints(params)
+        if (isMounted) {
+          setComplaints(data.items || [])
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err.data?.message || err.message || "Failed to load community complaints.")
+        }
+      } finally {
+        if (isMounted) setIsLoading(false)
+      }
+    }
+
+    loadCommunityComplaints()
+
+    return () => {
+      isMounted = false
+    }
+  }, [selectedCategory])
+
+  const filteredComplaints = complaints.filter((c) => {
+    if (!searchQuery.trim()) return true
+    const q = searchQuery.toLowerCase()
+    return (
+      c.title.toLowerCase().includes(q) ||
+      c.category.toLowerCase().includes(q) ||
+      c.id.toLowerCase().includes(q)
+    )
+  })
 
   return (
     <div className="space-y-6">
       <PageHeader
         tag="Community"
         title="Community Complaints"
-        description="Explore civic issues submitted by residents across Vijayawada. Upvote community problems to help administrators prioritize urgent municipal repairs."
+        description="Explore civic issues submitted by residents across Vijayawada. View public progress and municipal lifecycle updates."
       />
 
       {/* Filter and Category Bar */}
@@ -33,15 +89,15 @@ export function CommunityPage() {
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
           {CATEGORIES.map((cat) => (
             <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
+              key={cat.value}
+              onClick={() => setSelectedCategory(cat.value)}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-ring ${
-                selectedCategory === cat
+                selectedCategory === cat.value
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
-              {cat}
+              {cat.label}
             </button>
           ))}
         </div>
@@ -58,16 +114,105 @@ export function CommunityPage() {
       </div>
 
       {/* Community Feed Area */}
-      <Card className="shadow-xs">
-        <CardContent className="p-6 sm:p-10">
-          <EmptyState
-            icon={Users}
-            title="No community reports published yet"
-            description="Verified civic complaints submitted by citizens in Vijayawada will appear in this public feed once reporting opens in Phase 06. Upvoting will allow the community to prioritize urgent repairs."
-            badgeText="Vijayawada Municipal Feed"
-          />
-        </CardContent>
-      </Card>
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : error ? (
+        <Card className="shadow-xs">
+          <CardContent className="p-8 text-center text-xs text-destructive">
+            {error}
+          </CardContent>
+        </Card>
+      ) : filteredComplaints.length === 0 ? (
+        <Card className="shadow-xs">
+          <CardContent className="p-6 sm:p-10">
+            <EmptyState
+              icon={Users}
+              title="No community reports found"
+              description="No public civic reports have been published in this category yet. Be the first to report an infrastructure defect in your area."
+              badgeText="Vijayawada Municipal Feed"
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-3">
+          {filteredComplaints.map((item) => {
+            const dateStr = item.created_at
+              ? new Date(item.created_at).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })
+              : "Recently"
+
+            return (
+              <Link
+                key={item.id}
+                to={`/complaints/${item.id}`}
+                className="group block rounded-xl border border-border/80 bg-card p-4 transition-all hover:border-border hover:shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3.5">
+                    {/* Thumbnail or Icon */}
+                    {item.thumbnail_url ? (
+                      <div className="h-16 w-16 shrink-0 rounded-lg overflow-hidden border border-border bg-muted">
+                        <img
+                          src={item.thumbnail_url}
+                          alt="Thumbnail"
+                          className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-16 w-16 shrink-0 rounded-lg border border-border/60 bg-muted/40 flex items-center justify-center text-muted-foreground">
+                        <ImageIcon className="h-6 w-6 opacity-60" />
+                      </div>
+                    )}
+
+                    {/* Complaint Info */}
+                    <div className="space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <ComplaintStatusBadge status={item.status} />
+                        <ComplaintSeverityBadge severity={item.severity} />
+                        <span className="text-[11px] font-medium text-muted-foreground">
+                          {item.category.replace("_", " ")}
+                        </span>
+                      </div>
+
+                      <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                        {item.title}
+                      </h3>
+
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                        <span className="inline-flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {dateStr}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-primary" />
+                          {item.latitude?.toFixed(4)}, {item.longitude?.toFixed(4)}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <ImageIcon className="h-3 w-3" />
+                          {item.image_count} photo{item.image_count === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end text-xs text-muted-foreground group-hover:text-primary transition-colors sm:self-center">
+                    <span className="font-medium text-xs mr-1 hidden sm:inline">View Progress</span>
+                    <ArrowRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
+export default CommunityPage

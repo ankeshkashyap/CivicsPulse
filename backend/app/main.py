@@ -1,4 +1,4 @@
-﻿from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -51,6 +51,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
             "status_code": exc.status_code,
             "message": exc.detail,
         },
+        headers=getattr(exc, "headers", None),
     )
 
 

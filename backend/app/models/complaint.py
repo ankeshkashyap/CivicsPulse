@@ -2,15 +2,15 @@ import uuid
 from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional
 from sqlalchemy import (
-    CheckConstraint,
     Enum,
     ForeignKey,
-    Numeric,
     String,
     Text,
     Uuid,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from geoalchemy2 import Geometry, WKTElement
+from geoalchemy2.shape import to_shape
 from app.db.base import Base, UUIDMixin, TimestampMixin
 from app.models.enums import ComplaintCategory, ComplaintSeverity, ComplaintStatus
 
@@ -26,14 +26,11 @@ if TYPE_CHECKING:
 class Complaint(Base, UUIDMixin, TimestampMixin):
     """
     Central civic complaint entity.
-    Location is temporarily persisted as numeric latitude/longitude,
-    architecturally designed for future seamless migration to PostGIS geometry(Point, 4326).
+    Location is canonically stored as a PostGIS POINT geometry (EPSG:4326),
+    serving as the single authoritative source of truth.
     """
     __tablename__ = "complaints"
-    __table_args__ = (
-        CheckConstraint("latitude >= -90.0 AND latitude <= 90.0", name="chk_complaint_latitude"),
-        CheckConstraint("longitude >= -180.0 AND longitude <= 180.0", name="chk_complaint_longitude"),
-    )
+
 
     city_id: Mapped[uuid.UUID] = mapped_column(
         Uuid,
@@ -74,15 +71,56 @@ class Complaint(Base, UUIDMixin, TimestampMixin):
         index=True,
     )
 
-    # Temporary coordinate representation (to be migrated to PostGIS geometry)
-    latitude: Mapped[Decimal] = mapped_column(
-        Numeric(precision=9, scale=6, asdecimal=True),
+    # Canonical PostGIS Point geometry (SRID 4326) - Single Source of Truth
+    location = mapped_column(
+        Geometry(geometry_type="POINT", srid=4326, spatial_index=True),
         nullable=False,
     )
-    longitude: Mapped[Decimal] = mapped_column(
-        Numeric(precision=9, scale=6, asdecimal=True),
+    location_source: Mapped[str] = mapped_column(
+        String(50),
+        default="MANUAL",
         nullable=False,
     )
+
+    def __init__(self, *args, **kwargs):
+        # Support initializing with latitude and longitude transparently
+        lat = kwargs.pop("latitude", None)
+        lon = kwargs.pop("longitude", None)
+        if "location" not in kwargs and lat is not None and lon is not None:
+            kwargs["location"] = WKTElement(f"POINT({lon} {lat})", srid=4326)
+        super().__init__(*args, **kwargs)
+
+    @property
+    def latitude(self) -> Optional[Decimal]:
+        """Derived latitude coordinate extracted from canonical PostGIS location."""
+        if self.location is not None:
+            try:
+                shape = to_shape(self.location)
+                return Decimal(str(round(shape.y, 6)))
+            except Exception:
+                pass
+        return None
+
+    @latitude.setter
+    def latitude(self, value: Decimal | float) -> None:
+        current_lon = self.longitude or Decimal("0.0")
+        self.location = WKTElement(f"POINT({current_lon} {value})", srid=4326)
+
+    @property
+    def longitude(self) -> Optional[Decimal]:
+        """Derived longitude coordinate extracted from canonical PostGIS location."""
+        if self.location is not None:
+            try:
+                shape = to_shape(self.location)
+                return Decimal(str(round(shape.x, 6)))
+            except Exception:
+                pass
+        return None
+
+    @longitude.setter
+    def longitude(self, value: Decimal | float) -> None:
+        current_lat = self.latitude or Decimal("0.0")
+        self.location = WKTElement(f"POINT({value} {current_lat})", srid=4326)
 
     # Relationships
     city: Mapped["City"] = relationship(
