@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ComplaintStatusBadge, ComplaintSeverityBadge } from "@/components/complaints/ComplaintStatusBadge"
-import { getComplaints } from "@/lib/api"
+import { getComplaints, upvoteComplaint, removeUpvoteComplaint } from "@/lib/api"
 import {
   Users,
   Search,
@@ -16,6 +16,9 @@ import {
   Image as ImageIcon,
   ArrowRight,
   Shield,
+  ChevronUp,
+  Loader2,
+  TrendingUp,
 } from "lucide-react"
 
 const CATEGORIES = [
@@ -38,6 +41,55 @@ export function CommunityPage() {
   const [complaints, setComplaints] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [upvotingIds, setUpvotingIds] = useState({})
+
+  async function handleToggleUpvote(e, item) {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (upvotingIds[item.id]) return
+
+    setUpvotingIds((prev) => ({ ...prev, [item.id]: true }))
+    try {
+      if (item.has_upvoted) {
+        const res = await removeUpvoteComplaint(item.id)
+        setComplaints((prev) =>
+          prev.map((c) =>
+            c.id === item.id
+              ? {
+                  ...c,
+                  has_upvoted: res.has_upvoted,
+                  upvote_count: res.upvote_count,
+                  priority_score: res.priority_score,
+                }
+              : c
+          )
+        )
+      } else {
+        const res = await upvoteComplaint(item.id)
+        setComplaints((prev) =>
+          prev.map((c) =>
+            c.id === item.id
+              ? {
+                  ...c,
+                  has_upvoted: res.has_upvoted,
+                  upvote_count: res.upvote_count,
+                  priority_score: res.priority_score,
+                }
+              : c
+          )
+        )
+      }
+    } catch (err) {
+      console.error("Failed to toggle upvote:", err)
+    } finally {
+      setUpvotingIds((prev) => {
+        const next = { ...prev }
+        delete next[item.id]
+        return next
+      })
+    }
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -85,7 +137,7 @@ export function CommunityPage() {
       <PageHeader
         tag="Community"
         title="Community Complaints"
-        description="Explore civic issues submitted by residents across Vijayawada. View public progress and municipal lifecycle updates."
+        description="Explore civic issues submitted by residents across Vijayawada. Ranked deterministically by Community Priority (Severity Weight + Citizen Upvotes)."
       />
 
       {/* Filter and Category Bar */}
@@ -152,6 +204,8 @@ export function CommunityPage() {
                 })
               : "Recently"
 
+            const isUpvoting = !!upvotingIds[item.id]
+
             return (
               <Link
                 key={item.id}
@@ -159,7 +213,33 @@ export function CommunityPage() {
                 className="group block rounded-xl border border-border/80 bg-card p-4 transition-all hover:border-border hover:shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-start gap-3.5">
+                  <div className="flex items-start gap-3">
+                    {/* Upvote Interactive Action */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleUpvote(e, item)}
+                      disabled={isUpvoting}
+                      title={item.has_upvoted ? "Remove your upvote" : "Upvote this civic issue"}
+                      className={`flex flex-col items-center justify-center min-w-12 px-2 py-2 rounded-lg border text-xs font-semibold transition-all shrink-0 ${
+                        item.has_upvoted
+                          ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                          : "bg-muted/40 hover:bg-primary/10 text-muted-foreground hover:text-primary border-border/80"
+                      }`}
+                    >
+                      {isUpvoting ? (
+                        <Loader2 className="h-4 w-4 animate-spin my-0.5 text-current" />
+                      ) : (
+                        <ChevronUp
+                          className={`h-4 w-4 transition-transform group-hover:-translate-y-0.5 ${
+                            item.has_upvoted ? "text-primary-foreground stroke-[2.5]" : "text-current stroke-[2]"
+                          }`}
+                        />
+                      )}
+                      <span className="font-mono text-[11px] leading-tight mt-0.5">
+                        {item.upvote_count ?? 0}
+                      </span>
+                    </button>
+
                     {/* Thumbnail or Icon */}
                     {item.thumbnail_url ? (
                       <div className="h-16 w-16 shrink-0 rounded-lg overflow-hidden border border-border bg-muted">
@@ -176,16 +256,19 @@ export function CommunityPage() {
                     )}
 
                     {/* Complaint Info */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <ComplaintStatusBadge status={item.status} />
                         <ComplaintSeverityBadge severity={item.severity} />
+                        <Badge variant="outline" className="text-[10px] font-mono border-primary/40 text-primary">
+                          Priority: {item.priority_score ?? 0}
+                        </Badge>
                         <span className="text-[11px] font-medium text-muted-foreground">
                           {item.category.replace("_", " ")}
                         </span>
                       </div>
 
-                      <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                      <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate sm:whitespace-normal">
                         {item.title}
                       </h3>
 
@@ -206,7 +289,7 @@ export function CommunityPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-end text-xs text-muted-foreground group-hover:text-primary transition-colors sm:self-center">
+                  <div className="flex items-center justify-end text-xs text-muted-foreground group-hover:text-primary transition-colors sm:self-center shrink-0">
                     <span className="font-medium text-xs mr-1 hidden sm:inline">View Progress</span>
                     <ArrowRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
                   </div>

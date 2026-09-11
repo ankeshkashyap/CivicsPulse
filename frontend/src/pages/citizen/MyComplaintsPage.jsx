@@ -18,6 +18,7 @@ import {
   Image as ImageIcon,
   ArrowRight,
   RefreshCw,
+  ThumbsUp,
 } from "lucide-react"
 
 const STATUS_FILTERS = [
@@ -197,6 +198,9 @@ export function MyComplaintsPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <ComplaintStatusBadge status={item.status} />
                         <ComplaintSeverityBadge severity={item.severity} />
+                        <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary">
+                          Priority: {item.priority_score ?? 0}
+                        </Badge>
                         <span className="text-[11px] font-medium text-muted-foreground">
                           {item.category.replace("_", " ")}
                         </span>
@@ -218,6 +222,10 @@ export function MyComplaintsPage() {
                         <span className="inline-flex items-center gap-1">
                           <ImageIcon className="h-3 w-3" />
                           {item.image_count} photo{item.image_count === 1 ? "" : "s"}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-primary">
+                          <ThumbsUp className="h-3 w-3" />
+                          {item.upvote_count ?? 0} upvote{item.upvote_count === 1 ? "" : "s"}
                         </span>
                       </div>
                     </div>

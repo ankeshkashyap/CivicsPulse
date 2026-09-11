@@ -12,6 +12,7 @@ from app.models.complaint import Complaint
 from app.models.complaint_image import ComplaintImage
 from app.models.complaint_update import ComplaintUpdate
 from app.models.enums import ComplaintCategory, ComplaintSeverity, ComplaintStatus, UserRole
+from app.models.upvote import Upvote
 from app.models.user import User
 from app.schemas.complaint import (
     CitizenDashboardStatsResponse,
@@ -26,6 +27,7 @@ from app.services.exif_service import (
     validate_image_file,
 )
 from app.services.image_storage import ImageStorageProvider, StoredImageResult
+from app.services.priority_service import calculate_priority_score, get_severity_weight_sql
 
 logger = logging.getLogger(__name__)
 
@@ -212,26 +214,62 @@ def get_complaints(
 ) -> List[ComplaintListItemResponse]:
     """
     Returns sanitized complaint records.
+    Deterministic community ordering:
+        1. priority_score DESC
+        2. created_at DESC
     Strictly excludes sensitive citizen data (email, user_id, auth credentials) from community views.
     """
+    upvote_counts_subq = (
+        select(
+            Upvote.complaint_id,
+            func.count(Upvote.id).label("cnt"),
+        )
+        .group_by(Upvote.complaint_id)
+        .subquery()
+    )
+
+    user_upvotes_subq = (
+        select(Upvote.complaint_id)
+        .where(Upvote.user_id == current_user.id)
+        .subquery()
+    )
+
+    severity_weight_expr = get_severity_weight_sql(Complaint.severity)
+    upvote_count_expr = func.coalesce(upvote_counts_subq.c.cnt, 0)
+    priority_score_expr = upvote_count_expr + severity_weight_expr
+    has_upvoted_expr = user_upvotes_subq.c.complaint_id.isnot(None)
+
     stmt = (
-        select(Complaint)
+        select(
+            Complaint,
+            upvote_count_expr.label("upvotes_count"),
+            has_upvoted_expr.label("has_upvoted"),
+            priority_score_expr.label("priority_score"),
+        )
+        .outerjoin(upvote_counts_subq, Complaint.id == upvote_counts_subq.c.complaint_id)
+        .outerjoin(user_upvotes_subq, Complaint.id == user_upvotes_subq.c.complaint_id)
         .options(selectinload(Complaint.images))
-        .order_by(Complaint.created_at.desc())
     )
 
     if mine_only:
         stmt = stmt.where(Complaint.user_id == current_user.id)
+        stmt = stmt.order_by(Complaint.created_at.desc())
+    else:
+        stmt = stmt.order_by(
+            priority_score_expr.desc(),
+            Complaint.created_at.desc(),
+        )
+
     if status_filter:
         stmt = stmt.where(Complaint.status == status_filter)
     if category_filter:
         stmt = stmt.where(Complaint.category == category_filter)
 
     stmt = stmt.limit(min(max(1, limit), 100)).offset(max(0, offset))
-    complaints = db.scalars(stmt).all()
+    rows = db.execute(stmt).all()
 
     results = []
-    for c in complaints:
+    for c, upvotes_cnt, user_voted, score in rows:
         preview_url = c.images[0].image_url if c.images else None
         results.append(
             ComplaintListItemResponse(
@@ -247,7 +285,9 @@ def get_complaints(
                 created_at=c.created_at,
                 preview_image_url=preview_url,
                 images_count=len(c.images),
-                upvotes_count=0,
+                upvotes_count=upvotes_cnt,
+                has_upvoted=bool(user_voted),
+                priority_score=score,
                 is_owner=(c.user_id == current_user.id),
             )
         )
@@ -260,7 +300,8 @@ def get_complaint_by_id(
     current_user: User,
 ) -> ComplaintDetailResponse:
     """
-    Retrieves complete complaint record with sanitized chronological update history.
+    Retrieves complete complaint record with sanitized chronological update history,
+    upvote count, citizen upvote state, and priority score.
     """
     stmt = (
         select(Complaint)
@@ -306,6 +347,23 @@ def get_complaint_by_id(
         for img in complaint.images
     ]
 
+    upvote_count = db.scalar(
+        select(func.count(Upvote.id)).where(Upvote.complaint_id == complaint.id)
+    ) or 0
+
+    has_upvoted = False
+    if current_user and current_user.role == UserRole.CITIZEN:
+        has_upvoted = bool(
+            db.scalar(
+                select(Upvote.id).where(
+                    Upvote.complaint_id == complaint.id,
+                    Upvote.user_id == current_user.id,
+                )
+            )
+        )
+
+    score = calculate_priority_score(complaint.severity, upvote_count)
+
     return ComplaintDetailResponse(
         id=complaint.id,
         title=complaint.title,
@@ -323,6 +381,9 @@ def get_complaint_by_id(
         images=images_response,
         updates=updates_response,
         is_owner=(complaint.user_id == current_user.id),
+        upvote_count=upvote_count,
+        has_upvoted=has_upvoted,
+        priority_score=score,
     )
 
 
@@ -362,6 +423,13 @@ def get_citizen_dashboard_stats(
         )
     ) or 0
 
+    # Total community upvotes received on all complaints submitted by this citizen
+    community_upvotes = db.scalar(
+        select(func.count(Upvote.id))
+        .join(Complaint, Upvote.complaint_id == Complaint.id)
+        .where(Complaint.user_id == user_id)
+    ) or 0
+
     # Recent complaints for dashboard preview
     recent_items = get_complaints(
         db=db,
@@ -376,6 +444,6 @@ def get_citizen_dashboard_stats(
         in_progress=in_progress,
         resolved=resolved,
         rejected=rejected,
-        community_upvotes=0,
+        community_upvotes=community_upvotes,
         recent_complaints=recent_items,
     )

@@ -55,6 +55,9 @@ class ComplaintDetailResponse(BaseModel):
     images: List[ComplaintImageResponse]
     updates: List[ComplaintUpdateResponse]
     is_owner: bool = False
+    upvote_count: int = 0
+    has_upvoted: bool = False
+    priority_score: int = 0
 
 
 class ComplaintListItemResponse(BaseModel):
@@ -77,7 +80,16 @@ class ComplaintListItemResponse(BaseModel):
     preview_image_url: Optional[str] = None
     images_count: int = 0
     upvotes_count: int = 0
+    has_upvoted: bool = False
+    priority_score: int = 0
     is_owner: bool = False
+
+
+class UpvoteResponse(BaseModel):
+    complaint_id: uuid.UUID
+    has_upvoted: bool
+    upvote_count: int
+    priority_score: int
 
 
 class CitizenDashboardStatsResponse(BaseModel):

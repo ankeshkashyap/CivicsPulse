@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ComplaintStatusBadge, ComplaintSeverityBadge } from "@/components/complaints/ComplaintStatusBadge"
 import { ComplaintProgressTimeline } from "@/components/complaints/ComplaintProgressTimeline"
-import { getComplaint } from "@/lib/api"
+import { getComplaint, upvoteComplaint, removeUpvoteComplaint } from "@/lib/api"
 import {
   ArrowLeft,
   MapPin,
@@ -20,6 +20,9 @@ import {
   ExternalLink,
   Shield,
   Building,
+  ChevronUp,
+  Loader2,
+  ThumbsUp,
 } from "lucide-react"
 
 export function ComplaintDetailPage() {
@@ -34,6 +37,35 @@ export function ComplaintDetailPage() {
 
   // Success message banner if passed via navigation state
   const [successBanner, setSuccessBanner] = useState(location.state?.successMessage || null)
+  const [isUpvoting, setIsUpvoting] = useState(false)
+
+  async function handleToggleUpvote() {
+    if (!complaint || isUpvoting) return
+    setIsUpvoting(true)
+    try {
+      if (complaint.has_upvoted) {
+        const res = await removeUpvoteComplaint(complaint.id)
+        setComplaint((prev) => ({
+          ...prev,
+          has_upvoted: res.has_upvoted,
+          upvote_count: res.upvote_count,
+          priority_score: res.priority_score,
+        }))
+      } else {
+        const res = await upvoteComplaint(complaint.id)
+        setComplaint((prev) => ({
+          ...prev,
+          has_upvoted: res.has_upvoted,
+          upvote_count: res.upvote_count,
+          priority_score: res.priority_score,
+        }))
+      }
+    } catch (err) {
+      console.error("Failed to toggle upvote on complaint:", err)
+    } finally {
+      setIsUpvoting(false)
+    }
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -144,6 +176,9 @@ export function ComplaintDetailPage() {
         <div className="flex flex-wrap items-center gap-2">
           <ComplaintStatusBadge status={complaint.status} />
           <ComplaintSeverityBadge severity={complaint.severity} />
+          <Badge variant="outline" className="text-xs font-mono font-semibold border-primary/40 text-primary">
+            Priority: {complaint.priority_score ?? 0}
+          </Badge>
           <Badge variant="outline" className="text-xs font-normal">
             {complaint.category.replace("_", " ")}
           </Badge>
@@ -285,8 +320,70 @@ export function ComplaintDetailPage() {
           </Card>
         </div>
 
-        {/* Right Column: Progress Stepper & Audit Log (1 col) */}
+        {/* Right Column: Community Priority & Progress Stepper (1 col) */}
         <div className="space-y-6">
+          {/* Community Priority & Upvoting Card */}
+          <Card className="shadow-xs border-border/80 bg-card">
+            <CardHeader className="p-5 pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Community Priority
+                </CardTitle>
+                <Badge variant="outline" className="text-[10px] font-mono font-semibold text-primary border-primary/30">
+                  Score {complaint.priority_score ?? 0}
+                </Badge>
+              </div>
+              <CardDescription className="text-xs mt-1">
+                Citizen upvotes boost report priority and accelerate municipal response.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-5 pt-0 space-y-4">
+              <Button
+                type="button"
+                onClick={handleToggleUpvote}
+                disabled={isUpvoting}
+                variant={complaint.has_upvoted ? "default" : "outline"}
+                className={`w-full justify-center gap-2 text-xs font-semibold transition-all ${
+                  complaint.has_upvoted
+                    ? "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
+                    : "hover:border-primary hover:text-primary"
+                }`}
+              >
+                {isUpvoting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ChevronUp
+                    className={`h-4 w-4 stroke-[2.5] ${
+                      complaint.has_upvoted ? "text-primary-foreground" : ""
+                    }`}
+                  />
+                )}
+                <span>
+                  {complaint.has_upvoted ? "Upvoted" : "Upvote This Issue"} ({complaint.upvote_count ?? 0})
+                </span>
+              </Button>
+
+              <div className="p-3 rounded-lg bg-muted/40 border border-border/60 space-y-1.5 text-[11px] text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Severity Weight ({complaint.severity}):</span>
+                  <span className="font-mono font-semibold text-foreground">
+                    {complaint.severity === "HIGH" ? "+50" : complaint.severity === "MEDIUM" ? "+25" : "+10"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Citizen Upvotes:</span>
+                  <span className="font-mono font-semibold text-foreground">
+                    +{complaint.upvote_count ?? 0}
+                  </span>
+                </div>
+                <div className="border-t border-border/60 pt-1.5 flex justify-between font-semibold text-foreground">
+                  <span>Calculated Priority Score:</span>
+                  <span className="font-mono text-primary">{complaint.priority_score ?? 0}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <ComplaintProgressTimeline
             status={complaint.status}
             updates={complaint.updates || []}

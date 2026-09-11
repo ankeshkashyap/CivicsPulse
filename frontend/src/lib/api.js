@@ -84,13 +84,16 @@ export async function createComplaint(formData) {
   return handleResponse(response)
 }
 
-export async function getComplaints({ category, status, mine, page = 1, page_size = 20 } = {}) {
+export async function getComplaints({ category, status, mine, mine_only, page = 1, page_size = 50, limit, offset } = {}) {
   const query = new URLSearchParams()
-  if (category) query.set("category", category)
-  if (status) query.set("status", status)
-  if (mine !== undefined) query.set("mine", String(mine))
-  if (page) query.set("page", String(page))
-  if (page_size) query.set("page_size", String(page_size))
+  if (category && category !== "ALL") query.set("category", category)
+  if (status && status !== "ALL") query.set("status", status)
+  const isMine = mine !== undefined ? mine : mine_only
+  if (isMine !== undefined) query.set("mine", String(isMine))
+  if (limit) query.set("limit", String(limit))
+  else if (page_size) query.set("limit", String(page_size))
+  if (offset !== undefined) query.set("offset", String(offset))
+  else if (page && page_size) query.set("offset", String((page - 1) * page_size))
 
   const queryString = query.toString()
   const url = `${API_BASE}/complaints${queryString ? `?${queryString}` : ""}`
@@ -98,7 +101,14 @@ export async function getComplaints({ category, status, mine, page = 1, page_siz
     method: "GET",
     credentials: "include",
   })
-  return handleResponse(response)
+  const data = await handleResponse(response)
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      total: data.length,
+    }
+  }
+  return data || { items: [], total: 0 }
 }
 
 export async function getComplaint(id) {
@@ -111,6 +121,30 @@ export async function getComplaint(id) {
 
 export async function getCitizenDashboardStats() {
   const response = await fetch(`${API_BASE}/complaints/stats/citizen`, {
+    method: "GET",
+    credentials: "include",
+  })
+  return handleResponse(response)
+}
+
+export async function upvoteComplaint(id) {
+  const response = await fetch(`${API_BASE}/complaints/${id}/upvote`, {
+    method: "POST",
+    credentials: "include",
+  })
+  return handleResponse(response)
+}
+
+export async function removeUpvoteComplaint(id) {
+  const response = await fetch(`${API_BASE}/complaints/${id}/upvote`, {
+    method: "DELETE",
+    credentials: "include",
+  })
+  return handleResponse(response)
+}
+
+export async function getComplaintUpvoteStatus(id) {
+  const response = await fetch(`${API_BASE}/complaints/${id}/upvote`, {
     method: "GET",
     credentials: "include",
   })

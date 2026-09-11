@@ -12,6 +12,7 @@ from app.schemas.complaint import (
     CitizenDashboardStatsResponse,
     ComplaintDetailResponse,
     ComplaintListItemResponse,
+    UpvoteResponse,
 )
 from app.services.complaint_service import (
     create_complaint,
@@ -20,6 +21,7 @@ from app.services.complaint_service import (
     get_complaints,
 )
 from app.services.image_storage import get_image_storage_provider
+from app.services.upvote_service import add_upvote, get_upvote_status, remove_upvote
 
 router = APIRouter()
 
@@ -82,6 +84,7 @@ async def submit_complaint(
 )
 def list_complaints(
     mine_only: bool = Query(False, description="Filter strictly to current user's complaints"),
+    mine: Optional[bool] = Query(None, description="Alias for mine_only"),
     status: Optional[ComplaintStatus] = Query(None, description="Filter by lifecycle status"),
     category: Optional[ComplaintCategory] = Query(None, description="Filter by municipal category"),
     limit: int = Query(50, ge=1, le=100, description="Items per page"),
@@ -89,10 +92,11 @@ def list_complaints(
     current_user: User = Depends(require_authenticated_user),
     db: Session = Depends(get_db),
 ):
+    effective_mine = mine if mine is not None else mine_only
     return get_complaints(
         db=db,
         current_user=current_user,
-        mine_only=mine_only,
+        mine_only=effective_mine,
         status_filter=status,
         category_filter=category,
         limit=limit,
@@ -129,3 +133,48 @@ def get_complaint(
         complaint_id=complaint_id,
         current_user=current_user,
     )
+
+
+@router.post(
+    "/{complaint_id}/upvote",
+    response_model=UpvoteResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Upvote a civic complaint",
+    description="Allows authenticated citizens to upvote a complaint to raise community priority.",
+)
+def upvote_complaint(
+    complaint_id: uuid.UUID,
+    current_user: User = Depends(require_citizen),
+    db: Session = Depends(get_db),
+):
+    return add_upvote(db=db, complaint_id=complaint_id, citizen=current_user)
+
+
+@router.delete(
+    "/{complaint_id}/upvote",
+    response_model=UpvoteResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Remove an upvote from a civic complaint",
+    description="Allows authenticated citizens to rescind an existing upvote.",
+)
+def remove_complaint_upvote(
+    complaint_id: uuid.UUID,
+    current_user: User = Depends(require_citizen),
+    db: Session = Depends(get_db),
+):
+    return remove_upvote(db=db, complaint_id=complaint_id, citizen=current_user)
+
+
+@router.get(
+    "/{complaint_id}/upvote",
+    response_model=UpvoteResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get upvote status and priority score for a complaint",
+    description="Retrieves current upvote count, priority score, and whether the caller has upvoted.",
+)
+def complaint_upvote_status(
+    complaint_id: uuid.UUID,
+    current_user: User = Depends(require_authenticated_user),
+    db: Session = Depends(get_db),
+):
+    return get_upvote_status(db=db, complaint_id=complaint_id, current_user=current_user)
