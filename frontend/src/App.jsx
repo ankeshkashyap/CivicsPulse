@@ -1,75 +1,97 @@
-import React, { useState } from "react"
-import { Sun, Moon, RefreshCw, ShieldCheck } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import React from "react"
+import { Routes, Route, Navigate } from "react-router-dom"
+import { ThemeProvider } from "@/context/ThemeContext"
 import { AuthProvider, useAuth } from "@/context/AuthContext"
-import { LoginForm } from "@/components/auth/LoginForm"
-import { UserProfileCard } from "@/components/auth/UserProfileCard"
+import { ProtectedRoute } from "@/components/ProtectedRoute"
+import { AppShell } from "@/components/layout/AppShell"
+import { RefreshCw } from "lucide-react"
 
-function MainContent({ toggleTheme, isDark }) {
-  const { user, isLoading, isAuthenticated } = useAuth()
+// Auth Pages
+import { LoginPage } from "@/pages/auth/LoginPage"
 
-  return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-150">
-      <header className="border-b bg-card px-6 py-4">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-semibold text-sm">
-              CP
-            </div>
-            <div>
-              <span className="font-semibold text-base tracking-tight">CivicPulse</span>
-              <Badge variant="outline" className="ml-2 text-xs border-primary/30 text-primary">
-                Phase 04: Auth & IAM
-              </Badge>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {isAuthenticated && (
-              <span className="text-xs text-muted-foreground mr-1 hidden sm:inline-flex items-center gap-1">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-                {user.email}
-              </span>
-            )}
-            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
-              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-          </div>
-        </div>
-      </header>
+// Citizen Pages
+import { DashboardPage as CitizenDashboardPage } from "@/pages/citizen/DashboardPage"
+import { MyComplaintsPage } from "@/pages/citizen/MyComplaintsPage"
+import { CommunityPage } from "@/pages/citizen/CommunityPage"
+import { NotificationsPage } from "@/pages/citizen/NotificationsPage"
+import { ProfilePage as CitizenProfilePage } from "@/pages/citizen/ProfilePage"
 
-      <main className="flex-1 flex items-center justify-center p-6 bg-muted/10">
-        {isLoading ? (
-          <div className="text-center space-y-3">
-            <RefreshCw className="h-8 w-8 animate-spin text-primary mx-auto" />
-            <p className="text-xs text-muted-foreground">Checking authentication state...</p>
-          </div>
-        ) : isAuthenticated ? (
-          <UserProfileCard />
-        ) : (
-          <LoginForm />
-        )}
-      </main>
+// Admin Pages
+import { AdminDashboardPage } from "@/pages/admin/AdminDashboardPage"
+import { AdminComplaintsPage } from "@/pages/admin/AdminComplaintsPage"
+import { AdminMapPage } from "@/pages/admin/AdminMapPage"
+import { AdminAnalyticsPage } from "@/pages/admin/AdminAnalyticsPage"
+import { AdminDepartmentsPage } from "@/pages/admin/AdminDepartmentsPage"
+import { AdminUsersPage } from "@/pages/admin/AdminUsersPage"
+import { AdminProfilePage } from "@/pages/admin/AdminProfilePage"
 
-      <footer className="border-t py-3 px-6 bg-card text-center text-xs text-muted-foreground">
-        CivicPulse Vijayawada &bull; Passwordless Email-OTP & HttpOnly Session Transport &bull; Pure React (JS/JSX)
-      </footer>
-    </div>
-  )
-}
+function RootRedirect() {
+  const { user, isAuthenticated, isLoading } = useAuth()
 
-function App() {
-  const [isDark, setIsDark] = useState(false)
-
-  const toggleTheme = () => {
-    setIsDark(!isDark)
-    document.documentElement.classList.toggle("dark")
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center space-y-3 bg-background">
+        <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+        <span className="text-xs text-muted-foreground">Verifying civic session...</span>
+      </div>
+    )
   }
 
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />
+  }
+
+  return <Navigate to={user.role === "ADMIN" ? "/admin" : "/dashboard"} replace />
+}
+
+export function App() {
   return (
-    <AuthProvider>
-      <MainContent toggleTheme={toggleTheme} isDark={isDark} />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Routes>
+          {/* Public Auth Routes */}
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* Root Redirect */}
+          <Route path="/" element={<RootRedirect />} />
+
+          {/* Citizen Protected Routes */}
+          <Route
+            element={
+              <ProtectedRoute requiredRole="CITIZEN">
+                <AppShell />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/dashboard" element={<CitizenDashboardPage />} />
+            <Route path="/complaints" element={<MyComplaintsPage />} />
+            <Route path="/community" element={<CommunityPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/profile" element={<CitizenProfilePage />} />
+          </Route>
+
+          {/* Admin Protected Routes */}
+          <Route
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <AppShell />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/admin" element={<AdminDashboardPage />} />
+            <Route path="/admin/complaints" element={<AdminComplaintsPage />} />
+            <Route path="/admin/map" element={<AdminMapPage />} />
+            <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+            <Route path="/admin/departments" element={<AdminDepartmentsPage />} />
+            <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/admin/profile" element={<AdminProfilePage />} />
+          </Route>
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 
