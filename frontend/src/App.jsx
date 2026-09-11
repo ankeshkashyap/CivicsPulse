@@ -21,6 +21,7 @@ import { ProfilePage as CitizenProfilePage } from "@/pages/citizen/ProfilePage"
 // Admin Pages
 import { AdminDashboardPage } from "@/pages/admin/AdminDashboardPage"
 import { AdminComplaintsPage } from "@/pages/admin/AdminComplaintsPage"
+import { AdminComplaintDetailPage } from "@/pages/admin/AdminComplaintDetailPage"
 import { AdminMapPage } from "@/pages/admin/AdminMapPage"
 import { AdminAnalyticsPage } from "@/pages/admin/AdminAnalyticsPage"
 import { AdminDepartmentsPage } from "@/pages/admin/AdminDepartmentsPage"
@@ -84,6 +85,7 @@ export function App() {
           >
             <Route path="/admin" element={<AdminDashboardPage />} />
             <Route path="/admin/complaints" element={<AdminComplaintsPage />} />
+            <Route path="/admin/complaints/:id" element={<AdminComplaintDetailPage />} />
             <Route path="/admin/map" element={<AdminMapPage />} />
             <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
             <Route path="/admin/departments" element={<AdminDepartmentsPage />} />

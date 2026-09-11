@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.models.enums import ComplaintCategory, ComplaintSeverity, ComplaintStatus
+from app.models.enums import ComplaintActionType, ComplaintCategory, ComplaintSeverity, ComplaintStatus
 
 
 class ComplaintImageResponse(BaseModel):
@@ -22,13 +22,21 @@ class ComplaintUpdateResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    action_type: ComplaintActionType = ComplaintActionType.STATUS_CHANGE
     old_status: Optional[ComplaintStatus] = None
     new_status: ComplaintStatus
+    old_severity: Optional[ComplaintSeverity] = None
+    new_severity: Optional[ComplaintSeverity] = None
+    old_department_id: Optional[uuid.UUID] = None
+    old_department_name: Optional[str] = None
+    new_department_id: Optional[uuid.UUID] = None
+    new_department_name: Optional[str] = None
     remark: Optional[str] = None
     progress_percentage: int
     actor_role: str
     actor_label: str
     created_at: datetime
+
 
 
 class ComplaintDetailResponse(BaseModel):

@@ -150,3 +150,110 @@ export async function getComplaintUpvoteStatus(id) {
   })
   return handleResponse(response)
 }
+
+// ---------------------------------------------------------------------------
+// Admin API
+// ---------------------------------------------------------------------------
+
+export async function getAdminDashboardStats(cityId = null) {
+  const query = new URLSearchParams()
+  if (cityId) query.set("city_id", cityId)
+  const qs = query.toString()
+  const response = await fetch(`${API_BASE}/admin/dashboard${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    credentials: "include",
+  })
+  return handleResponse(response)
+}
+
+export async function getAdminComplaints({
+  search,
+  status,
+  severity,
+  category,
+  department_id,
+  city_id,
+  min_priority,
+  limit = 50,
+  offset = 0,
+} = {}) {
+  const query = new URLSearchParams()
+  if (search) query.set("search", search)
+  if (status && status !== "ALL") query.set("status", status)
+  if (severity && severity !== "ALL") query.set("severity", severity)
+  if (category && category !== "ALL") query.set("category", category)
+  if (department_id && department_id !== "ALL") query.set("department_id", department_id)
+  if (city_id) query.set("city_id", city_id)
+  if (min_priority !== undefined && min_priority !== null && min_priority !== "") {
+    query.set("min_priority", String(min_priority))
+  }
+  query.set("limit", String(limit))
+  query.set("offset", String(offset))
+
+  const qs = query.toString()
+  const response = await fetch(`${API_BASE}/admin/complaints${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    credentials: "include",
+  })
+  return handleResponse(response)
+}
+
+export async function getAdminComplaint(id) {
+  const response = await fetch(`${API_BASE}/admin/complaints/${id}`, {
+    method: "GET",
+    credentials: "include",
+  })
+  return handleResponse(response)
+}
+
+export async function updateAdminComplaintSeverity(id, { severity, remark }) {
+  const response = await fetch(`${API_BASE}/admin/complaints/${id}/severity`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ severity, remark }),
+  })
+  return handleResponse(response)
+}
+
+export async function assignAdminComplaintDepartment(id, { department_id, remark }) {
+  const response = await fetch(`${API_BASE}/admin/complaints/${id}/department`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ department_id, remark }),
+  })
+  return handleResponse(response)
+}
+
+export async function transitionAdminComplaintStatus(id, { status, remark, department_id }) {
+  const response = await fetch(`${API_BASE}/admin/complaints/${id}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ status, remark, department_id }),
+  })
+  return handleResponse(response)
+}
+
+export async function addAdminComplaintRemark(id, { remark }) {
+  const response = await fetch(`${API_BASE}/admin/complaints/${id}/remarks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ remark }),
+  })
+  return handleResponse(response)
+}
+
+export async function getAdminDepartments(cityId = null) {
+  const query = new URLSearchParams()
+  if (cityId) query.set("city_id", cityId)
+  const qs = query.toString()
+  const response = await fetch(`${API_BASE}/admin/departments${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    credentials: "include",
+  })
+  return handleResponse(response)
+}
+

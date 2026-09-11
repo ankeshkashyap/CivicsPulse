@@ -140,33 +140,94 @@ export function ComplaintProgressTimeline({ status, updates = [] }) {
                   })
                 : "Recently"
 
+              const actionType = update.action_type || "STATUS_CHANGE"
+
               return (
                 <div
                   key={update.id || idx}
-                  className="rounded-lg border border-border/70 bg-card p-3.5 shadow-xs space-y-1.5"
+                  className="rounded-lg border border-border/70 bg-card p-3.5 shadow-xs space-y-2"
                 >
                   <div className="flex items-center justify-between flex-wrap gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground">
-                        {update.old_status ? (
-                          <>
-                            <span>{update.old_status}</span>
-                            <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                          </>
-                        ) : null}
-                        <span className="text-primary">{update.new_status}</span>
-                      </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Action Type Badge / Header */}
+                      {actionType === "STATUS_CHANGE" && (
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                          {update.old_status ? (
+                            <>
+                              <span className="font-mono text-[11px] text-muted-foreground">{update.old_status}</span>
+                              <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                            </>
+                          ) : null}
+                          <span className="text-primary font-mono text-[11px] font-semibold">{update.new_status}</span>
+                        </div>
+                      )}
+
+                      {actionType === "SEVERITY_CHANGE" && (
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
+                            Severity
+                          </span>
+                          {update.old_severity ? (
+                            <>
+                              <span className="text-xs font-medium text-muted-foreground">{update.old_severity}</span>
+                              <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                            </>
+                          ) : null}
+                          <span className="text-xs font-semibold text-foreground">{update.new_severity}</span>
+                        </div>
+                      )}
+
+                      {actionType === "DEPARTMENT_ASSIGNMENT" && (
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
+                            Department
+                          </span>
+                          {update.old_department_name ? (
+                            <>
+                              <span className="text-xs font-medium text-muted-foreground">{update.old_department_name}</span>
+                              <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                            </>
+                          ) : null}
+                          <span className="text-xs font-semibold text-foreground">
+                            {update.new_department_name || "Unassigned"}
+                          </span>
+                        </div>
+                      )}
+
+                      {actionType === "PROGRESS_REMARK" && (
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                            Progress Remark
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Progress Percentage */}
                       {update.progress_percentage !== undefined && (
                         <span className="text-[10px] rounded-full bg-muted px-2 py-0.5 font-medium text-muted-foreground">
                           {update.progress_percentage}%
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] text-muted-foreground">{dateStr}</span>
+
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      {update.user_name && (
+                        <span className="font-medium text-foreground/80">{update.user_name}</span>
+                      )}
+                      <span>{dateStr}</span>
+                    </div>
                   </div>
 
+                  {/* Supplemental information for composite status change with department assignment */}
+                  {actionType === "STATUS_CHANGE" && update.new_department_name && (
+                    <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                      <span>Assigned to department:</span>
+                      <span className="font-semibold text-foreground">{update.new_department_name}</span>
+                    </div>
+                  )}
+
                   {update.remark && (
-                    <p className="text-xs text-muted-foreground leading-relaxed">
+                    <p className="text-xs text-muted-foreground leading-relaxed bg-muted/30 rounded p-2 border border-border/40">
                       {update.remark}
                     </p>
                   )}
@@ -179,3 +240,4 @@ export function ComplaintProgressTimeline({ status, updates = [] }) {
     </div>
   )
 }
+

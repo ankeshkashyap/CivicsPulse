@@ -320,13 +320,21 @@ def get_complaint_by_id(
 
     # Sanitize update history
     updates_response = []
-    for u in complaint.updates:
+    sorted_updates = sorted(complaint.updates, key=lambda u: u.created_at)
+    for u in sorted_updates:
         role, label = _format_update_actor(u, complaint.user_id)
         updates_response.append(
             ComplaintUpdateResponse(
                 id=u.id,
+                action_type=u.action_type,
                 old_status=u.old_status,
                 new_status=u.new_status,
+                old_severity=u.old_severity,
+                new_severity=u.new_severity,
+                old_department_id=u.old_department_id,
+                old_department_name=u.old_department.name if u.old_department else None,
+                new_department_id=u.new_department_id,
+                new_department_name=u.new_department.name if u.new_department else None,
                 remark=u.remark,
                 progress_percentage=u.progress_percentage,
                 actor_role=role,

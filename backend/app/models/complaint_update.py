@@ -10,10 +10,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, UUIDMixin, CreatedAtMixin
-from app.models.enums import ComplaintStatus
+from app.models.enums import ComplaintActionType, ComplaintSeverity, ComplaintStatus
 
 if TYPE_CHECKING:
     from app.models.complaint import Complaint
+    from app.models.department import Department
     from app.models.user import User
 
 
@@ -46,6 +47,12 @@ class ComplaintUpdate(Base, UUIDMixin, CreatedAtMixin):
         nullable=False,
         index=True,
     )
+    action_type: Mapped[ComplaintActionType] = mapped_column(
+        Enum(ComplaintActionType, name="complaint_action_type", native_enum=True),
+        default=ComplaintActionType.STATUS_CHANGE,
+        server_default="STATUS_CHANGE",
+        nullable=False,
+    )
     old_status: Mapped[Optional[ComplaintStatus]] = mapped_column(
         Enum(ComplaintStatus, name="complaint_status", native_enum=True),
         nullable=True,
@@ -53,6 +60,24 @@ class ComplaintUpdate(Base, UUIDMixin, CreatedAtMixin):
     new_status: Mapped[ComplaintStatus] = mapped_column(
         Enum(ComplaintStatus, name="complaint_status", native_enum=True),
         nullable=False,
+    )
+    old_severity: Mapped[Optional[ComplaintSeverity]] = mapped_column(
+        Enum(ComplaintSeverity, name="complaint_severity", native_enum=True),
+        nullable=True,
+    )
+    new_severity: Mapped[Optional[ComplaintSeverity]] = mapped_column(
+        Enum(ComplaintSeverity, name="complaint_severity", native_enum=True),
+        nullable=True,
+    )
+    old_department_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid,
+        ForeignKey("departments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    new_department_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid,
+        ForeignKey("departments.id", ondelete="SET NULL"),
+        nullable=True,
     )
     remark: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     progress_percentage: Mapped[int] = mapped_column(
@@ -69,4 +94,12 @@ class ComplaintUpdate(Base, UUIDMixin, CreatedAtMixin):
     updated_by_user: Mapped["User"] = relationship(
         "User",
         back_populates="complaint_updates",
+    )
+    old_department: Mapped[Optional["Department"]] = relationship(
+        "Department",
+        foreign_keys=[old_department_id],
+    )
+    new_department: Mapped[Optional["Department"]] = relationship(
+        "Department",
+        foreign_keys=[new_department_id],
     )
