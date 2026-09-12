@@ -457,6 +457,20 @@ def assign_complaint_department(
             detail="Complaint not found.",
         )
 
+    # Invariant: Terminal states cannot be mutated through department-assignment
+    if complaint.status in (ComplaintStatus.RESOLVED, ComplaintStatus.REJECTED):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot modify department for complaint in terminal state {complaint.status.value}.",
+        )
+
+    # Invariant: ASSIGNED and IN_PROGRESS require an assigned department (cannot be unassigned)
+    if department_id is None and complaint.status in (ComplaintStatus.ASSIGNED, ComplaintStatus.IN_PROGRESS):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot unassign department while complaint is in {complaint.status.value} status.",
+        )
+
     old_department_id = complaint.department_id
 
     if department_id is not None:

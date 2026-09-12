@@ -706,51 +706,57 @@ export function AdminComplaintDetailPage() {
                   </span>
                 </h4>
 
-                <form onSubmit={handleDepartmentAssignment} className="space-y-3">
-                  <select
-                    value={targetDeptId}
-                    onChange={(e) => setTargetDeptId(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    aria-label="Department dispatch selection"
-                  >
-                    <option value="">Select department...</option>
-                    {complaint.assigned_department_id && (
-                      <option value="UNASSIGN">&mdash; Clear / Unassign Department &mdash;</option>
-                    )}
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
+                {isTerminalState ? (
+                  <div className="p-3 rounded-lg bg-muted text-xs text-muted-foreground">
+                    This complaint is in terminal status ({complaint.status}). Department assignment cannot be modified.
+                  </div>
+                ) : (
+                  <form onSubmit={handleDepartmentAssignment} className="space-y-3">
+                    <select
+                      value={targetDeptId}
+                      onChange={(e) => setTargetDeptId(e.target.value)}
+                      className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      aria-label="Department dispatch selection"
+                    >
+                      <option value="">Select department...</option>
+                      {complaint.assigned_department_id && !["ASSIGNED", "IN_PROGRESS"].includes(complaint.status) && (
+                        <option value="UNASSIGN">&mdash; Clear / Unassign Department &mdash;</option>
+                      )}
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
 
-                  <input
-                    type="text"
-                    placeholder="Dispatch note / assignment reason..."
-                    value={deptRemark}
-                    onChange={(e) => setDeptRemark(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
+                    <input
+                      type="text"
+                      placeholder="Dispatch note / assignment reason..."
+                      value={deptRemark}
+                      onChange={(e) => setDeptRemark(e.target.value)}
+                      className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
 
-                  <Button
-                    type="submit"
-                    variant="outline"
-                    size="sm"
-                    disabled={
-                      (targetDeptId === (complaint.assigned_department_id || "")) ||
-                      (!targetDeptId && !complaint.assigned_department_id) ||
-                      isSubmitting
-                    }
-                    className="w-full text-xs h-8"
-                  >
-                    {isSubmitting ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                    ) : null}
-                    {targetDeptId === "UNASSIGN" || !targetDeptId
-                      ? "Unassign Department"
-                      : "Assign / Reassign Department"}
-                  </Button>
-                </form>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      size="sm"
+                      disabled={
+                        (targetDeptId === (complaint.assigned_department_id || "")) ||
+                        (!targetDeptId && !complaint.assigned_department_id) ||
+                        isSubmitting
+                      }
+                      className="w-full text-xs h-8"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                      ) : null}
+                      {targetDeptId === "UNASSIGN" || !targetDeptId
+                        ? "Unassign Department"
+                        : "Assign / Reassign Department"}
+                    </Button>
+                  </form>
+                )}
               </div>
 
               <div className="border-t border-border/60" />

@@ -411,6 +411,141 @@ def test_e3_admin_can_unassign_department(auth_client, admin_user, base_complain
     assert last_update["new_department_id"] is None
 
 
+def test_e4_admin_cannot_unassign_department_when_assigned(auth_client, admin_user, base_complaint, test_department):
+    headers = _get_auth_headers(admin_user)
+
+    # Transition SUBMITTED -> UNDER_REVIEW -> ASSIGNED
+    auth_client.patch(
+        f"/api/v1/admin/complaints/{base_complaint.id}/status",
+        headers=headers,
+        json={"status": "UNDER_REVIEW"},
+    )
+    res_assign = auth_client.patch(
+        f"/api/v1/admin/complaints/{base_complaint.id}/status",
+        headers=headers,
+        json={"status": "ASSIGNED", "department_id": str(test_department.id)},
+    )
+    assert res_assign.status_code == 200
+    assert res_assign.json()["status"] == "ASSIGNED"
+    assert res_assign.json()["department_id"] == str(test_department.id)
+
+    # Invariant: ASSIGNED requires department -> unassignment must be rejected
+    res_unassign = auth_client.patch(
+        f"/api/v1/admin/complaints/{base_complaint.id}/department",
+        headers=headers,
+        json={"department_id": None},
+    )
+    assert res_unassign.status_code == 400
+    msg = (res_unassign.json().get("message") or res_unassign.json().get("detail") or "").lower()
+    assert "cannot unassign department" in msg
+    assert "assigned" in msg
+
+
+def test_e5_admin_cannot_unassign_department_when_in_progress(auth_client, admin_user, base_complaint, test_department):
+    headers = _get_auth_headers(admin_user)
+
+    # Transition SUBMITTED -> UNDER_REVIEW -> ASSIGNED -> IN_PROGRESS
+    auth_client.patch(
+        f"/api/v1/admin/complaints/{base_complaint.id}/status",
+        headers=headers,
+        json={"status": "UNDER_REVIEW"},
+    )
+    auth_client.patch(
+        f"/api/v1/admin/complaints/{base_complaint.id}/status",
+        headers=headers,
+        json={"status": "ASSIGNED", "department_id": str(test_department.id)},
+    )
+    res_prog = auth_client.patch(
+        f"/api/v1/admin/complaints/{base_complaint.id}/status",
+        headers=headers,
+        json={"status": "IN_PROGRESS"},
+    )
+    assert res_prog.status_code == 200
+    assert res_prog.json()["status"] == "IN_PROGRESS"
+    assert res_prog.json()["department_id"] == str(test_department.id)
+
+    # Invariant: IN_PROGRESS requires department -> unassignment must be rejected
+    res_unassign = auth_client.patch(
+        f"/api/v1/admin/complaints/{base_complaint.id}/department",
+        headers=headers,
+        json={"department_id": None},
+    )
+    assert res_unassign.status_code == 400
+    msg = (res_unassign.json().get("message") or res_unassign.json().get("detail") or "").lower()
+    assert "cannot unassign department" in msg
+    assert "in_progress" in msg
+
+
+def test_e6_valid_unassignment_from_under_review_succeeds(auth_client, admin_user, base_complaint, test_department):
+    headers = _get_auth_headers(admin_user)
+
+    # Transition to UNDER_REVIEW
+    res_review = auth_client.patch(
+        f"/api/v1/admin/complaints/{base_complaint.id}/status",
+        headers=headers,
+        json={"status": "UNDER_REVIEW"},
+    )
+    assert res_review.status_code == 200
+    assert res_review.json()["status"] == "UNDER_REVIEW"
+
+    # Assign department in UNDER_REVIEW
+    res_assign = auth_client.patch(
+        f"/api/v1/admin/complaints/{base_complaint.id}/department",
+        headers=headers,
+        json={"department_id": str(test_department.id)},
+    )
+    assert res_assign.status_code == 200
+    assert res_assign.json()["department_id"] == str(test_department.id)
+
+    # Invariant: UNDER_REVIEW may be unassigned -> succeeds
+    res_unassign = auth_client.patch(
+        f"/api/v1/admin/complaints/{base_complaint.id}/department",
+        headers=headers,
+        json={"department_id": None, "remark": "Removed for re-triage"},
+    )
+    assert res_unassign.status_code == 200
+    assert res_unassign.json()["department_id"] is None
+    assert res_unassign.json()["department_name"] is None
+
+
+def test_e7_admin_cannot_modify_department_in_terminal_states(auth_client, admin_user, base_complaint, test_department):
+    headers = _get_auth_headers(admin_user)
+
+    # 1. Test REJECTED terminal state
+    auth_client.patch(
+        f"/api/v1/admin/complaints/{base_complaint.id}/status",
+        headers=headers,
+        json={"status": "UNDER_REVIEW"},
+    )
+    res_rej = auth_client.patch(
+        f"/api/v1/admin/complaints/{base_complaint.id}/status",
+        headers=headers,
+        json={"status": "REJECTED"},
+    )
+    assert res_rej.status_code == 200
+    assert res_rej.json()["status"] == "REJECTED"
+
+    # Attempt to assign department on REJECTED complaint
+    res_assign_rej = auth_client.patch(
+        f"/api/v1/admin/complaints/{base_complaint.id}/department",
+        headers=headers,
+        json={"department_id": str(test_department.id)},
+    )
+    assert res_assign_rej.status_code == 400
+    msg = (res_assign_rej.json().get("message") or res_assign_rej.json().get("detail") or "").lower()
+    assert "terminal state" in msg
+
+    # Attempt to unassign department on REJECTED complaint
+    res_unassign_rej = auth_client.patch(
+        f"/api/v1/admin/complaints/{base_complaint.id}/department",
+        headers=headers,
+        json={"department_id": None},
+    )
+    assert res_unassign_rej.status_code == 400
+    msg2 = (res_unassign_rej.json().get("message") or res_unassign_rej.json().get("detail") or "").lower()
+    assert "terminal state" in msg2
+
+
 # ============================================================================
 # 6. Lifecycle Transitions & State Machine Invariants
 # ============================================================================
