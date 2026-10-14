@@ -47,12 +47,21 @@ class ConsoleEmailProvider(EmailOTPProvider):
 class SMTPEmailProvider(EmailOTPProvider):
     """Production-capable SMTP provider using environment-configured credentials."""
 
-    def __init__(self):
-        self.host = settings.SMTP_HOST
-        self.port = settings.SMTP_PORT
-        self.user = settings.SMTP_USER
-        self.password = settings.SMTP_PASSWORD
-        self.sender = settings.EMAIL_FROM
+    def __init__(
+        self,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        from_email: Optional[str] = None,
+        use_tls: Optional[bool] = None,
+    ):
+        self.host = host if host is not None else settings.SMTP_HOST
+        self.port = port if port is not None else settings.SMTP_PORT
+        self.user = username if username is not None else settings.effective_smtp_username
+        self.password = password if password is not None else settings.SMTP_PASSWORD
+        self.sender = from_email if from_email is not None else settings.effective_smtp_from_email
+        self.use_tls = use_tls if use_tls is not None else settings.SMTP_USE_TLS
 
     def send_otp(self, email: str, otp: str) -> bool:
         if not self.host or not self.sender:
@@ -72,14 +81,22 @@ class SMTPEmailProvider(EmailOTPProvider):
         msg.attach(MIMEText(text_content, "plain"))
 
         try:
-            with smtplib.SMTP(self.host, self.port) as server:
-                server.starttls()
-                if self.user and self.password:
-                    server.login(self.user, self.password)
-                server.send_message(msg)
+            if self.port == 465 and not self.use_tls:
+                with smtplib.SMTP_SSL(self.host, self.port, timeout=10) as server:
+                    if self.user and self.password:
+                        server.login(self.user, self.password)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP(self.host, self.port, timeout=10) as server:
+                    if self.use_tls:
+                        server.starttls()
+                    if self.user and self.password:
+                        server.login(self.user, self.password)
+                    server.send_message(msg)
+            logger.info(f"Successfully dispatched OTP email via SMTP from {self.sender}")
             return True
         except Exception as exc:
-            logger.error(f"Failed to dispatch SMTP email to {email}: {exc}")
+            logger.error(f"Failed to dispatch SMTP email to recipient: {type(exc).__name__}: {exc}")
             return False
 
 
@@ -102,3 +119,9 @@ def set_email_provider(provider: EmailOTPProvider) -> None:
     """Override provider (primarily used in tests)."""
     global _default_provider
     _default_provider = provider
+
+
+def reset_email_provider() -> None:
+    """Resets provider singleton so next call re-evaluates configuration."""
+    global _default_provider
+    _default_provider = None

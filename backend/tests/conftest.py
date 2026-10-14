@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
-from app.services.email_service import get_email_provider, ConsoleEmailProvider
+from app.services.email_service import get_email_provider, set_email_provider, reset_email_provider, ConsoleEmailProvider
 from app.services.auth_service import _ip_request_timestamps
 
 from sqlalchemy.ext.compiler import compiles
@@ -152,12 +152,18 @@ def auth_client(test_engine):
     app.dependency_overrides.pop(get_db, None)
 
 
+@pytest.fixture(autouse=True)
+def isolate_test_email_provider():
+    """Ensures test suite is always isolated with ConsoleEmailProvider, never calling SMTP."""
+    test_provider = ConsoleEmailProvider()
+    set_email_provider(test_provider)
+    yield test_provider
+    reset_email_provider()
+
+
 @pytest.fixture
-def email_provider():
-    """Provides the active email provider and clears sent messages before each test."""
-    provider = get_email_provider()
-    if isinstance(provider, ConsoleEmailProvider):
-        provider.clear()
-    yield provider
-    if isinstance(provider, ConsoleEmailProvider):
-        provider.clear()
+def email_provider(isolate_test_email_provider):
+    """Provides the active ConsoleEmailProvider and clears sent messages before each test."""
+    isolate_test_email_provider.clear()
+    yield isolate_test_email_provider
+    isolate_test_email_provider.clear()

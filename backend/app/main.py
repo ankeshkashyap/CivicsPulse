@@ -17,6 +17,11 @@ logger = setup_logging()
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifecycle management."""
     logger.info(f"Starting {settings.PROJECT_NAME} in '{settings.ENVIRONMENT}' environment")
+    if settings.sync_database_url.startswith("sqlite"):
+        from app.db.base import Base
+        import app.models  # noqa: F401
+        from app.db.session import engine
+        Base.metadata.create_all(bind=engine)
     yield
     logger.info(f"Shutting down {settings.PROJECT_NAME}")
 
